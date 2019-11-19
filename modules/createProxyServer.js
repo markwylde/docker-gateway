@@ -3,9 +3,9 @@ const http = require('http');
 const fs = require('fs');
 
 const options = {
-  key: fs.readFileSync('/etc/letsencrypt/live/verl.com/privkey.pem'),
-  cert: fs.readFileSync('/etc/letsencrypt/live/verl.com/cert.pem'),
-  ca: fs.readFileSync('/etc/letsencrypt/live/verl.com/fullchain.pem')
+  key: fs.readFileSync(process.env.SSL_KEY_PATH),
+  cert: fs.readFileSync(process.env.SSL_CERT_PATH),
+  ca: fs.readFileSync(process.env.SSL_CHAIN_PATH)
 };
 
 function createProxyServer (routes) {
