@@ -28,11 +28,11 @@ services:
     image: example
     deploy:
       labels:
-        docker-gateway.0: https://one.hello.test
+        docker-gateway.0: https://one.hello.test -> 8080
 
   example2:
     image: example
     deploy:
       labels:
-        docker-gateway.0: https://two.hello.test
+        docker-gateway.0: https://two.hello.test -> 8080
 ```
