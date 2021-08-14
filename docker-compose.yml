@@ -2,7 +2,7 @@ version: "3"
 
 services:
   docker-gateway:
-    image: docker-gateway
+    image: markwylde/docker-gateway
     ports:
       - 80:80
       - 443:443
