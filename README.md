@@ -13,7 +13,7 @@ version: "3"
 
 services:
   docker-gateway:
-    image: markwylde/docker-gateway
+    image: ghcr.io/markwylde/docker-gateway:master
     ports:
       - 80:80
       - 443:443
