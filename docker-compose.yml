@@ -8,13 +8,13 @@ services:
       - 443:443
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ../acme-generator/certs:/certs
+      - ./example/certs:/certs
     environment:
-      SSL_KEY_PATH: /certs/privkey.pem
-      SSL_CERT_PATH: /certs/chain.pem
+      SSL_KEY_PATH: /certs/localhost.privkey.pem
+      SSL_CERT_PATH: /certs/localhost.cert.pem
 
   example:
-    image: example
+    image: local/example
     deploy:
       labels:
-        docker-gateway.0: https://hello.test
+        docker-gateway.0: https://hello.test -> 8080
