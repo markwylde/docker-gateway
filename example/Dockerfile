@@ -4,8 +4,6 @@ ADD package.json package.json
 
 RUN npm install
 
-ADD modules modules
-ADD config.js config.js
-ADD index.js index.js
+ADD . .
 
 CMD ["node", "index.js"]

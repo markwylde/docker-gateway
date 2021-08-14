@@ -1,31 +1,14 @@
-const axios = require('axios')
+const axios = require('axios');
+
+const addRoute = require('./addRoute');
 
 function listRoutesFromServices (routes) {
-
-  function addRoute (service) {
-    const incomingUrl = service.Spec.Labels['external.proxy.incoming_url']
-    const serviceName = service.Spec.Name
-    const serviceId = service.ID
-    if (incomingUrl) {
-      const existingRouteIndex = routes.find(route => route.incomingUrl === incomingUrl)
-      if (existingRouteIndex) {
-        routes.splice(existingRouteIndex,1)
-      }
-
-      routes.push({
-        incomingUrl,
-        serviceId,
-        serviceName
-      })
-    }
-  }
-
   axios({
-    url: `/v1.24/services`,
+    url: '/v1.24/services',
     socketPath: '/var/run/docker.sock'
   }).then(services => {
-    services.data.forEach(addRoute)
-  })
+    services.data.forEach(addRoute.bind(null, routes));
+  });
 }
 
-module.exports = listRoutesFromServices
+module.exports = listRoutesFromServices;

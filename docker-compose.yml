@@ -2,20 +2,19 @@ version: "3"
 
 services:
   docker-gateway:
-    image: markwylde/docker-gateway
+    image: docker-gateway
     ports:
       - 80:80
       - 443:443
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /etc/letsencrypt:/etc/letsencrypt
+      - ../acme-generator/certs:/certs
     environment:
-      SSL_KEY_PATH: /etc/letsencrypt/live/example.com/privkey.pem
-      SSL_CERT_PATH: /etc/letsencrypt/live/example.com/cert.pem
-      SSL_CHAIN_PATH: /etc/letsencrypt/live/example.com/fullchain.pem
-    networks:
-      - web
+      SSL_KEY_PATH: /certs/privkey.pem
+      SSL_CERT_PATH: /certs/chain.pem
 
-networks:
-  web:
-    external: true
+  example:
+    image: example
+    deploy:
+      labels:
+        docker-gateway.0: https://hello.test
