@@ -9,7 +9,7 @@ function createProxy (routes, request, response) {
   let url;
   try {
     url = `https://${request.headers.host}${request.url || ''}`;
-    route = routes.find(route => url.match(route.configValue));
+    route = routes.find(route => url.match(route.incomingHost));
   } catch (error) {
     console.log(error);
   }
