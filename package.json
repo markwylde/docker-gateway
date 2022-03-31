@@ -9,7 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "axios": "^0.26.0",
+    "axios": "^0.26.1",
     "http-proxy": "^1.18.1"
   }
 }
