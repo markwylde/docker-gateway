@@ -1,11 +1,9 @@
-FROM node:16-alpine
+FROM node:18-alpine
 
 ADD package.json package.json
 
 RUN npm install
 
-ADD modules modules
-ADD config.js config.js
-ADD index.js index.js
+ADD lib lib
 
-CMD ["node", "index.js"]
+CMD ["node", "lib"]

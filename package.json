@@ -1,15 +1,34 @@
 {
   "name": "docker-gateway",
   "version": "2.0.3",
-  "description": "",
-  "main": "index.js",
+  "type": "module",
+  "description": "This project provides a gateway for use with Docker, allowing you to proxy multiple services from multiple domains.",
+  "main": "lib/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
-  "license": "ISC",
+  "author": {
+    "email": "me@markwylde.com",
+    "name": "Mark Wylde",
+    "url": "https://github.com/markwylde"
+  },
+  "license": "MIT",
   "dependencies": {
     "axios": "^0.27.2",
-    "http-proxy": "^1.18.1"
-  }
+    "globby": "^13.1.3",
+    "http-proxy": "^1.18.1",
+    "node-forge": "^1.3.1"
+  },
+  "directories": {
+    "lib": "lib"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/markwylde/docker-gateway.git"
+  },
+  "bugs": {
+    "url": "https://github.com/markwylde/docker-gateway/issues"
+  },
+  "homepage": "https://github.com/markwylde/docker-gateway#readme"
 }

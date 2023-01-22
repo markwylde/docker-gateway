@@ -1,0 +1,17 @@
+version: "3"
+
+services:
+  # docker-gateway:
+  #   image: local/docker-gateway
+  #   ports:
+  #     - 80:80
+  #     - 443:443
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #     - ./certs:/certs
+
+  example-swarm:
+    image: local/example
+    deploy:
+      labels:
+        docker-gateway.0: https://hello.test -> 8080
