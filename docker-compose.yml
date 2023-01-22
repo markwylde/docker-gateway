@@ -22,3 +22,9 @@ services:
       context: ./example
     labels:
       docker-gateway.0: https://two.test -> http://example-two:8080
+
+  example-three:
+    build:
+      context: ./example
+    labels:
+      docker-gateway.0: https://something.three.test -> http://example-three:8080
