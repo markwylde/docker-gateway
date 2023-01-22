@@ -11,8 +11,14 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./certs:/certs
 
-  example:
+  example-one:
     build:
       context: ./example
     labels:
-      docker-gateway.0: https://hello.test -> http://example:8080
+      docker-gateway.0: https://one.test -> http://example-one:8080
+
+  example-two:
+    build:
+      context: ./example
+    labels:
+      docker-gateway.0: https://two.test -> http://example-two:8080
