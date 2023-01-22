@@ -1,14 +1,24 @@
 version: "3"
 
 services:
+  readonly-docker:
+    image: tecnativa/docker-socket-proxy
+    privileged: true
+    environment:
+      CONTAINERS: 1
+      SERVICES: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
   docker-gateway:
     image: local/docker-gateway
     ports:
       - 80:80
       - 443:443
+    environment:
+      DOCKER_URL: http://readonly-docker:2375
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./certs:/certs
+      - ./certs:/certs:ro
 
   example-one:
     image: local/example

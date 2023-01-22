@@ -7,29 +7,50 @@ This project provides a gateway for use with Docker, allowing you to proxy multi
 - Works with websockets
 - Manage routes via your swarm or compose labels
 
+## Local test
+To test the examples, add this to your local `/etc/hosts` file:
+```text
+127.0.0.1	one.test two.test something.three.test
+```
+
+Then run the example below, [docker-compose.yml](docker-compose.yml) or [docker-swarm.yml](docker-swarm.yml).
+
 ## Example
 ```yaml
 version: "3"
 
 services:
+  readonly-docker:
+    image: tecnativa/docker-socket-proxy
+    privileged: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
   docker-gateway:
     image: ghcr.io/markwylde/docker-gateway:master
     ports:
       - 80:80
       - 443:443
+    env:
+      DOCKER_HOST=tcp://localhost:2375
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ../certs:/certs
+      - ../certs:/certs:ro
 
   example1:
     image: example
     deploy:
       labels:
-        docker-gateway.0: https://one.hello.test -> http://example1:8080
+        docker-gateway.0: https://one.test -> http://example1:8080
 
   example2:
     image: example
     deploy:
       labels:
-        docker-gateway.0: https://two.hello.test -> http://example2:8080
+        docker-gateway.0: https://two.test -> http://example2:8080
+
+  example3:
+    image: example
+    deploy:
+      labels:
+        docker-gateway.0: https://something.three.test -> http://example3:8080
 ```
