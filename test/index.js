@@ -40,7 +40,7 @@ const mockDocker = http.createServer((request, response) => {
 });
 mockDocker.listen(9999);
 
-test('test http', async t => {
+test('http - found', async t => {
   t.plan(2);
 
   const stop = await createDockerGateway({
@@ -57,15 +57,13 @@ test('test http', async t => {
     })
   });
 
-  console.log('rd=', response.data);
-
   t.equal(response.status, 200, 'has correct status');
   t.equal(response.data, 'request.url=/test', 'has correct response text');
 
   stop();
 });
 
-test('test pattern matching', async t => {
+test('http - pattern matching', async t => {
   t.plan(2);
 
   const stop = await createDockerGateway({
@@ -88,7 +86,31 @@ test('test pattern matching', async t => {
   stop();
 });
 
-test('test websocket', async t => {
+test('http - domain not found', async t => {
+  t.plan(2);
+
+  const stop = await createDockerGateway({
+    httpPort: 9080,
+    httpsPort: 9443
+  });
+
+  const response = await axios('https://0.0.0.0:9443/test', {
+    headers: {
+      host: 'notfound.test'
+    },
+    validateStatus: () => true,
+    httpsAgent: new https.Agent({
+      rejectUnauthorized: false
+    })
+  });
+
+  t.equal(response.status, 404, 'has correct status');
+  t.equal(response.data, '404 Not Found - No route available to take this request', 'has correct response text');
+
+  stop();
+});
+
+test('websocket - found', async t => {
   t.plan(1);
 
   const stop = await createDockerGateway({
@@ -112,6 +134,29 @@ test('test websocket', async t => {
     ws.close();
     stop();
     t.equal(message.toString(), 'done');
+  });
+});
+
+test('websocket - not found', async t => {
+  t.plan(1);
+
+  const stop = await createDockerGateway({
+    httpPort: 9080,
+    httpsPort: 9443
+  });
+
+  const ws = new WebSocket('wss://localhost:9443', {
+    rejectUnauthorized: false,
+    hostname: 'notfound.test',
+    headers: {
+      host: 'notfound.test'
+    }
+  });
+
+  ws.on('error', error => {
+    ws.close();
+    stop();
+    t.equal(error.message, 'socket hang up');
   });
 });
 
