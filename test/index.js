@@ -96,9 +96,9 @@ test('test websocket', async t => {
     httpsPort: 9443
   });
 
-  const ws = new WebSocket('wss://one.test:9443', {
+  const ws = new WebSocket('wss://localhost:9443', {
     rejectUnauthorized: false,
-    host: 'localhost',
+    hostname: 'one.test',
     headers: {
       host: 'one.test'
     }
