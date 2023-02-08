@@ -54,7 +54,8 @@ test('http - found', async t => {
     },
     httpsAgent: new https.Agent({
       rejectUnauthorized: false
-    })
+    }),
+    validateStatus: () => true
   });
 
   t.equal(response.status, 200, 'has correct status');

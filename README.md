@@ -23,6 +23,9 @@ services:
   readonly-docker:
     image: tecnativa/docker-socket-proxy
     privileged: true
+    environment:
+      CONTAINERS: 1
+      SERVICES: 1
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
