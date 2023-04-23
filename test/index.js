@@ -28,9 +28,11 @@ const mockDocker = http.createServer((request, response) => {
   if (request.url === '/v1.24/containers/json') {
     response.end(JSON.stringify([{
       Labels: {
-        'docker-gateway.1': 'https://one.test/(.*) -> http://0.0.0.0:9998/$1',
-        'docker-gateway.2': 'https://one.test/alpha/(.*) -> http://0.0.0.0:9998/pattern/a/$1',
-        'docker-gateway.3': 'https://one.test/beta/(.*) -> http://0.0.0.0:9998/pattern/b/$1'
+        'docker-gateway.1': 'http://one.test/(.*) -> https://one.test/$1',
+        'docker-gateway.2': 'https://one.test/(.*) -> http://0.0.0.0:9998/$1',
+        'docker-gateway.3': 'https://one.test/alpha/(.*) -> http://0.0.0.0:9998/pattern/a/$1',
+        'docker-gateway.4': 'https://one.test/beta/(.*) -> http://0.0.0.0:9998/pattern/b/$1',
+        'docker-gateway.5': 'http://two.test/(.*) -> http://0.0.0.0:9998/$1'
       }
     }]));
     return;
@@ -159,6 +161,49 @@ test('websocket - not found', async t => {
     stop();
     t.equal(error.message, 'socket hang up');
   });
+});
+
+test('http - redirect to https', async t => {
+  t.plan(2);
+
+  const stop = await createDockerGateway({
+    httpPort: 9080,
+    httpsPort: 9443
+  });
+
+  const response = await axios('http://0.0.0.0:9080/alpha/one', {
+    headers: {
+      host: 'one.test'
+    },
+    validateStatus: () => true,
+    maxRedirects: 0
+  });
+
+  t.equal(response.status, 302, 'has correct status');
+  t.equal(response.headers.location, 'https://one.test/alpha/one', 'has correct location header');
+
+  stop();
+});
+
+test('http - proxy http requests', async t => {
+  t.plan(2);
+
+  const stop = await createDockerGateway({
+    httpPort: 9080,
+    httpsPort: 9443
+  });
+
+  const response = await axios('http://0.0.0.0:9080/alpha/one', {
+    headers: {
+      host: 'two.test'
+    },
+    validateStatus: () => true
+  });
+
+  t.equal(response.status, 200, 'has correct status');
+  t.equal(response.data, 'request.url=/alpha/one', 'has correct response text');
+
+  stop();
 });
 
 test.on('finish', () => {
