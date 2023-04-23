@@ -15,6 +15,12 @@ To test the examples, add this to your local `/etc/hosts` file:
 
 Then run the example below, [docker-compose.yml](docker-compose.yml) or [docker-swarm.yml](docker-swarm.yml).
 
+## Syntax
+Labels can be used to set some rules for the proxy. There are two available symbols:
+
+`->` is a transparent proxy to the url on right
+`=>` is a 301 redirect proxy to the url on right
+
 ## Example
 ```yaml
 version: "3"
@@ -44,14 +50,14 @@ services:
     image: example
     deploy:
       labels:
-        docker-gateway.0: http://one.test/(.*) -> https://one.test/$1
+        docker-gateway.0: http://one.test/(.*) => https://one.test/$1
         docker-gateway.1: https://one.test/(.*) -> http://example1:8080/$1
 
   example2:
     image: example
     deploy:
       labels:
-        docker-gateway.0: http://two.test/(.*) -> https://two.test/$1
+        docker-gateway.0: http://two.test/(.*) => https://two.test/$1
         docker-gateway.1: https://two.test/(.*) -> http://example2:8080/$1
 
   example3:
@@ -59,4 +65,5 @@ services:
     deploy:
       labels:
         docker-gateway.0: https://something.three.test/(.*) -> http://example3:8080/$1
+
 ```

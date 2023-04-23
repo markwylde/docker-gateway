@@ -28,11 +28,11 @@ const mockDocker = http.createServer((request, response) => {
   if (request.url === '/v1.24/containers/json') {
     response.end(JSON.stringify([{
       Labels: {
-        'docker-gateway.1': 'http://one.test/(.*) -> https://one.test/$1',
+        'docker-gateway.1': 'http://one.test/(.*) => https://one.test/$1',
         'docker-gateway.2': 'https://one.test/(.*) -> http://0.0.0.0:9998/$1',
         'docker-gateway.3': 'https://one.test/alpha/(.*) -> http://0.0.0.0:9998/pattern/a/$1',
         'docker-gateway.4': 'https://one.test/beta/(.*) -> http://0.0.0.0:9998/pattern/b/$1',
-        'docker-gateway.5': 'http://two.test/(.*) -> http://0.0.0.0:9998/$1'
+        'docker-gateway.5': 'http://two.test/(.*) => http://0.0.0.0:9998/$1'
       }
     }]));
     return;
@@ -89,6 +89,28 @@ test('http - pattern matching', async t => {
   stop();
 });
 
+test('http - pattern matching with 301 redirect', async t => {
+  t.plan(2);
+
+  const stop = await createDockerGateway({
+    httpPort: 9080,
+    httpsPort: 9443
+  });
+
+  const response = await axios('http://0.0.0.0:9080/one', {
+    headers: {
+      host: 'one.test'
+    },
+    validateStatus: () => true,
+    maxRedirects: 0
+  });
+
+  t.equal(response.status, 301, 'has correct status');
+  t.equal(response.headers.location, 'https://one.test/one', 'has correct location header');
+
+  stop();
+});
+
 test('http - domain not found', async t => {
   t.plan(2);
 
@@ -105,6 +127,28 @@ test('http - domain not found', async t => {
     httpsAgent: new https.Agent({
       rejectUnauthorized: false
     })
+  });
+
+  t.equal(response.status, 404, 'has correct status');
+  t.equal(response.data, '404 Not Found - No route available to take this request', 'has correct response text');
+
+  stop();
+});
+
+test('http - domain not found with 301 redirect', async t => {
+  t.plan(2);
+
+  const stop = await createDockerGateway({
+    httpPort: 9080,
+    httpsPort: 9443
+  });
+
+  const response = await axios('http://0.0.0.0:9080/one', {
+    headers: {
+      host: 'notfound.test'
+    },
+    validateStatus: () => true,
+    maxRedirects: 0
   });
 
   t.equal(response.status, 404, 'has correct status');
@@ -163,6 +207,33 @@ test('websocket - not found', async t => {
   });
 });
 
+test('websocket - proxy and 301 redirect', async t => {
+  t.plan(1);
+
+  const stop = await createDockerGateway({
+    httpPort: 9080,
+    httpsPort: 9443
+  });
+
+  const ws = new WebSocket('wss://localhost:9443/beta/one', {
+    rejectUnauthorized: false,
+    hostname: 'one.test',
+    headers: {
+      host: 'one.test'
+    }
+  });
+
+  ws.on('open', function open() {
+    ws.send('something');
+  });
+
+  ws.on('message', message => {
+    ws.close();
+    stop();
+    t.equal(message.toString(), 'done');
+  });
+});
+
 test('http - redirect to https', async t => {
   t.plan(2);
 
@@ -179,7 +250,7 @@ test('http - redirect to https', async t => {
     maxRedirects: 0
   });
 
-  t.equal(response.status, 302, 'has correct status');
+  t.equal(response.status, 301, 'has correct status');
   t.equal(response.headers.location, 'https://one.test/alpha/one', 'has correct location header');
 
   stop();
