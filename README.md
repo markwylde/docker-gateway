@@ -2,7 +2,7 @@
 This project provides a gateway for use with Docker, allowing you to proxy multiple services from multiple domains.
 
 ## Features
-- Expose an http server that force redirects to https
+- Expose an http server
 - Expose an https server using your custom certificates
 - Works with websockets
 - Manage routes via your swarm or compose labels
@@ -44,13 +44,15 @@ services:
     image: example
     deploy:
       labels:
-        docker-gateway.0: https://one.test/(.*) -> http://example1:8080/$1
+        docker-gateway.0: http://one.test/(.*) -> https://one.test/$1
+        docker-gateway.1: https://one.test/(.*) -> http://example1:8080/$1
 
   example2:
     image: example
     deploy:
       labels:
-        docker-gateway.0: https://two.test/(.*) -> http://example2:8080/$1
+        docker-gateway.0: http://two.test/(.*) -> https://two.test/$1
+        docker-gateway.1: https://two.test/(.*) -> http://example2:8080/$1
 
   example3:
     image: example
