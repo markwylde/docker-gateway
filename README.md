@@ -19,6 +19,7 @@ Then run the example below, [docker-compose.yml](docker-compose.yml) or [docker-
 Labels can be used to set some rules for the proxy. There are two available symbols:
 
 `->` is a transparent proxy to the url on right
+
 `=>` is a 301 redirect proxy to the url on right
 
 ## Example

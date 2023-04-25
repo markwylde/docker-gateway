@@ -32,7 +32,8 @@ const mockDocker = http.createServer((request, response) => {
         'docker-gateway.2': 'https://one.test/(.*) -> http://0.0.0.0:9998/$1',
         'docker-gateway.3': 'https://one.test/alpha/(.*) -> http://0.0.0.0:9998/pattern/a/$1',
         'docker-gateway.4': 'https://one.test/beta/(.*) -> http://0.0.0.0:9998/pattern/b/$1',
-        'docker-gateway.5': 'http://two.test/(.*) => http://0.0.0.0:9998/$1'
+        'docker-gateway.5': 'http://two.test/(.*) => http://0.0.0.0:9998/$1',
+        'docker-gateway.6': 'https://oops.test/(.*) -> http://notfound:9998/$1'
       }
     }]));
     return;
@@ -62,6 +63,30 @@ test('http - found', async t => {
 
   t.equal(response.status, 200, 'has correct status');
   t.equal(response.data, 'request.url=/test', 'has correct response text');
+
+  stop();
+});
+
+test('http - wrong upstream host', async t => {
+  t.plan(2);
+
+  const stop = await createDockerGateway({
+    httpPort: 9080,
+    httpsPort: 9443
+  });
+
+  const response = await axios('https://0.0.0.0:9443/test', {
+    headers: {
+      host: 'oops.test'
+    },
+    httpsAgent: new https.Agent({
+      rejectUnauthorized: false
+    }),
+    validateStatus: () => true
+  });
+
+  t.equal(response.status, 502, 'has correct status');
+  t.equal(response.data, '502 - Bad Gateway', 'has correct response text');
 
   stop();
 });
