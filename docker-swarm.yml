@@ -24,16 +24,16 @@ services:
     image: local/example
     deploy:
       labels:
-        docker-gateway.0: https://one.test/(.*) -> https://example-one:8080/$1
+        docker-gateway.0: https://one.test/(.*) -> https://example-one:8080/$$1
 
   example-two:
     image: local/example
     deploy:
       labels:
-        docker-gateway.0: https://two.test/(.*) -> https://example-two:8080/$1
+        docker-gateway.0: https://two.test/(.*) -> https://example-two:8080/$$1
 
   example-three:
     image: local/example
     deploy:
       labels:
-        docker-gateway.0: https://something.three.test/(.*) -> https://example-three:8080/$1
+        docker-gateway.0: https://something.three.test/(.*) -> https://example-three:8080/$$1

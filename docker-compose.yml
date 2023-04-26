@@ -25,16 +25,16 @@ services:
     build:
       context: ./example
     labels:
-      docker-gateway.0: https://one.test/(.*) -> http://example-one:8080/$1
+      docker-gateway.0: https://one.test/(.*) -> http://example-one:8080/$$1
 
   example-two:
     build:
       context: ./example
     labels:
-      docker-gateway.0: https://two.test/(.*) -> http://example-two:8080/$1
+      docker-gateway.0: https://two.test/(.*) -> http://example-two:8080/$$1
 
   example-three:
     build:
       context: ./example
     labels:
-      docker-gateway.0: https://something.three.test/(.*) -> http://example-three:8080/$1
+      docker-gateway.0: https://something.three.test/(.*) -> http://example-three:8080/$$1

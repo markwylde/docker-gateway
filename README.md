@@ -41,7 +41,7 @@ services:
     ports:
       - 80:80
       - 443:443
-    env:
+    environment:
       DOCKER_URL: http://readonly-docker:2375
       CERT_PATTERN: /certs/**.pem
     volumes:
@@ -51,20 +51,20 @@ services:
     image: example
     deploy:
       labels:
-        docker-gateway.0: http://one.test/(.*) => https://one.test/$1
-        docker-gateway.1: https://one.test/(.*) -> http://example1:8080/$1
+        docker-gateway.0: http://one.test/(.*) => https://one.test/$$1
+        docker-gateway.1: https://one.test/(.*) -> http://example1:8080/$$1
 
   example2:
     image: example
     deploy:
       labels:
-        docker-gateway.0: http://two.test/(.*) => https://two.test/$1
-        docker-gateway.1: https://two.test/(.*) -> http://example2:8080/$1
+        docker-gateway.0: http://two.test/(.*) => https://two.test/$$1
+        docker-gateway.1: https://two.test/(.*) -> http://example2:8080/$$1
 
   example3:
     image: example
     deploy:
       labels:
-        docker-gateway.0: https://something.three.test/(.*) -> http://example3:8080/$1
+        docker-gateway.0: https://something.three.test/(.*) -> http://example3:8080/$$1
 
 ```
