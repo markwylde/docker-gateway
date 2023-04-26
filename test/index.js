@@ -33,7 +33,8 @@ const mockDocker = http.createServer((request, response) => {
         'docker-gateway.3': 'https://one.test/alpha/(.*) -> http://0.0.0.0:9998/pattern/a/$1',
         'docker-gateway.4': 'https://one.test/beta/(.*) -> http://0.0.0.0:9998/pattern/b/$1',
         'docker-gateway.5': 'http://two.test/(.*) => http://0.0.0.0:9998/$1',
-        'docker-gateway.6': 'https://oops.test/(.*) -> http://notfound:9998/$1'
+        'docker-gateway.6': 'https://oops.test/(.*) -> http://notfound:9998/$1',
+        'docker-gateway.7': 'https://(.*).four.test/(.*) -> http://0.0.0.0:9998/$1/$2'
       }
     }]));
     return;
@@ -110,6 +111,29 @@ test('http - pattern matching', async t => {
 
   t.equal(response.status, 200, 'has correct status');
   t.equal(response.data, 'request.url=/pattern/a/one', 'has correct response text');
+
+  stop();
+});
+
+test('http - multple pattern matching', async t => {
+  t.plan(2);
+
+  const stop = await createDockerGateway({
+    httpPort: 9080,
+    httpsPort: 9443
+  });
+
+  const response = await axios('https://0.0.0.0:9443/second', {
+    headers: {
+      host: 'first.four.test'
+    },
+    httpsAgent: new https.Agent({
+      rejectUnauthorized: false
+    })
+  });
+
+  t.equal(response.status, 200, 'has correct status');
+  t.equal(response.data, 'request.url=/first/second', 'has correct response text');
 
   stop();
 });
@@ -248,7 +272,7 @@ test('websocket - proxy and 301 redirect', async t => {
     }
   });
 
-  ws.on('open', function open() {
+  ws.on('open', function open () {
     ws.send('something');
   });
 
