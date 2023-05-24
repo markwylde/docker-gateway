@@ -34,7 +34,8 @@ const mockDocker = http.createServer((request, response) => {
         'docker-gateway.4': 'https://one.test/beta/(.*) -> http://0.0.0.0:9998/pattern/b/$1',
         'docker-gateway.5': 'http://two.test/(.*) => http://0.0.0.0:9998/$1',
         'docker-gateway.6': 'https://oops.test/(.*) -> http://notfound:9998/$1',
-        'docker-gateway.7': 'https://(.*).four.test/(.*) -> http://0.0.0.0:9998/$1/$2'
+        'docker-gateway.7': 'https://(.*).four.test/(.*) -> http://0.0.0.0:9998/$1/$2',
+        'docker-gateway.8': 'http://(.*).five.test/(.*) => http://$1:9998/$2'
       }
     }]));
     return;
@@ -134,6 +135,31 @@ test('http - multple pattern matching', async t => {
 
   t.equal(response.status, 200, 'has correct status');
   t.equal(response.data, 'request.url=/first/second', 'has correct response text');
+
+  stop();
+});
+
+test('http - pattern matching domain', async t => {
+  t.plan(2);
+
+  const stop = await createDockerGateway({
+    httpPort: 9080,
+    httpsPort: 9443
+  });
+
+  const response = await axios('http://0.0.0.0:9080/second', {
+    headers: {
+      host: 'localhost.five.test'
+    },
+    validateStatus: () => true,
+    maxRedirects: 0,
+    httpsAgent: new https.Agent({
+      rejectUnauthorized: false
+    })
+  });
+
+  t.equal(response.status, 301, 'has correct status');
+  t.equal(response.headers.location, 'http://localhost:9998/second', 'has correct location header');
 
   stop();
 });
