@@ -1,6 +1,6 @@
 {
   "name": "docker-gateway",
-  "version": "5.4.0",
+  "version": "5.5.0",
   "type": "module",
   "description": "This project provides a gateway for use with Docker, allowing you to proxy multiple services from multiple domains.",
   "main": "lib/index.js",
