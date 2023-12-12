@@ -28,10 +28,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v2
+      - name: Build and push
+        uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
           push: true
-          platforms: ${{ matrix.platform }}
-          tags: ghcr.io/markwylde/docker-gateway:latest-${{ matrix.platform }}
+          tags: user/app:latest
