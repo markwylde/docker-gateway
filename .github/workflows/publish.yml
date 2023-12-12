@@ -34,4 +34,4 @@ jobs:
           file: ./Dockerfile
           push: true
           platforms: ${{ matrix.platform }}
-          tags: ghcr.io/markwylde/docker-gateway:latest
+          tags: ghcr.io/markwylde/docker-gateway:latest-${{ matrix.platform }}
