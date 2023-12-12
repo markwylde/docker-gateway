@@ -10,12 +10,6 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - linux/amd64
-          - linux/arm64
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
