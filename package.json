@@ -17,7 +17,7 @@
   "dependencies": {
     "axios": "^1.6.2",
     "final-stream": "^2.0.4",
-    "globby": "^14.0.0",
+    "globby": "^14.0.1",
     "http-proxy": "^1.18.1",
     "minimist": "^1.2.8",
     "ndjson-fe": "^1.2.10"
