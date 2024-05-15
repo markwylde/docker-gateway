@@ -30,7 +30,7 @@
     "c8": "^9.1.0",
     "eslint": "^8.57.0",
     "eslint-config-standard": "^17.1.0",
-    "ws": "^8.16.0"
+    "ws": "^8.17.0"
   },
   "repository": {
     "type": "git",
