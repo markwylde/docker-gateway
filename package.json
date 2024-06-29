@@ -1,6 +1,6 @@
 {
   "name": "docker-gateway",
-  "version": "5.9.0",
+  "version": "5.9.1",
   "type": "module",
   "description": "This project provides a gateway for use with Docker, allowing you to proxy multiple services from multiple domains.",
   "main": "lib/index.js",
@@ -15,22 +15,21 @@
   },
   "license": "MIT",
   "dependencies": {
-    "axios": "^1.6.8",
+    "axios": "^1.7.2",
     "final-stream": "^2.0.4",
     "globby": "^14.0.1",
     "http-proxy": "^1.18.1",
     "minimist": "^1.2.8",
-    "ndjson-fe": "^1.2.10"
+    "ndjson-fe": "^1.2.11"
   },
   "directories": {
     "lib": "lib"
   },
   "devDependencies": {
-    "basictap": "^4.3.5",
-    "c8": "^9.1.0",
+    "c8": "^10.1.2",
     "eslint": "^8.57.0",
     "eslint-config-standard": "^17.1.0",
-    "ws": "^8.17.0"
+    "ws": "^8.17.1"
   },
   "repository": {
     "type": "git",
