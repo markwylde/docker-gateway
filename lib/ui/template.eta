@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Docker Gateway UI</title>
+  <style>
+    body {
+      font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .section {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    h1, h2 {
+      margin-top: 0;
+      color: #333;
+    }
+    .routes-list, .changes-list {
+      list-style: none;
+      padding: 0;
+    }
+    .route-item {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+    }
+    .route-item:last-child {
+      border-bottom: none;
+    }
+    .change-item {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+    }
+    .change-item:last-child {
+      border-bottom: none;
+    }
+    .timestamp {
+      color: #666;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="section">
+      <h1>Docker Gateway Status</h1>
+    </div>
+
+    <div class="section">
+      <h2>Active Routes</h2>
+      <ul class="routes-list">
+        <% it.routes.forEach(function(route) { %>
+          <li class="route-item">
+            <strong><%= route.incomingHost %></strong> <%= route.type === 'proxy' ? '->' : '=>' %> <%= route.target.href %>
+          </li>
+        <% }); %>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>Recent Changes</h2>
+      <ul class="changes-list">
+        <% it.changes.forEach(function(change) { %>
+          <li class="change-item">
+            <span class="timestamp"><%= change.timestamp %></span>
+            <div><%= change.event %></div>
+          </li>
+        <% }); %>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>
