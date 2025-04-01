@@ -8,4 +8,7 @@ RUN npm install
 
 ADD lib lib
 
+RUN apk add tini
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["node", "lib"]
