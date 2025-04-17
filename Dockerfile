@@ -10,5 +10,5 @@ ADD lib lib
 
 RUN apk add tini
 
-ENTRYPOINT ["/usr/bin/tini", "--"]
+ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "lib"]
