@@ -1,12 +1,25 @@
-import http from "node:http";
+import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import https from "node:https";
+import type { Socket } from "node:net";
+import type { SecureContext } from "node:tls";
 import httpProxy from "http-proxy";
-import matchWildcardDomain from "../utils/matchWildcardDomain.js";
+import type { Certificate, Route, Router } from "../types.ts";
+import matchWildcardDomain from "../utils/matchWildcardDomain.ts";
 
-function findRoute(router, requestUrl, localAddress) {
+interface FindRouteResult {
+	route: Route | undefined;
+	match: RegExpMatchArray | null;
+	type: "proxy" | "redirect" | undefined;
+}
+
+function findRoute(
+	router: Router,
+	requestUrl: string,
+	localAddress: string | undefined,
+): FindRouteResult {
 	const routes = router.getRoutes();
-	let match;
-	let type;
+	let match: RegExpMatchArray | null = null;
+	let type: "proxy" | "redirect" | undefined;
 
 	const route = routes.find((route) => {
 		match = requestUrl.match(route.incomingHost);
@@ -63,8 +76,15 @@ function findRoute(router, requestUrl, localAddress) {
 	};
 }
 
-function createProxy(router, request, response) {
-	const protocol = request.connection.encrypted ? "https" : "http";
+function createProxy(
+	router: Router,
+	request: IncomingMessage & { url?: string },
+	response?: ServerResponse,
+): httpProxy | undefined {
+	const protocol =
+		"encrypted" in request.socket && request.socket.encrypted
+			? "https"
+			: "http";
 	const url = `${protocol}://${request.headers.host}${request.url || ""}`;
 	const localAddress = request.socket.localAddress;
 
@@ -81,7 +101,7 @@ function createProxy(router, request, response) {
 	const proxyUrl = new URL(
 		route.target.href.replace(
 			/\$(\d+)/g,
-			(_, index) => match[parseInt(index, 10)] || "",
+			(_, index) => match?.[parseInt(index, 10)] || "",
 		),
 	);
 
@@ -94,7 +114,11 @@ function createProxy(router, request, response) {
 	});
 }
 
-function handleHttp(router, request, response) {
+function handleHttp(
+	router: Router,
+	request: IncomingMessage,
+	response: ServerResponse,
+): void {
 	const url = `http://${request.headers.host}${request.url || ""}`;
 	const localAddress = request.socket.localAddress;
 
@@ -118,7 +142,10 @@ function handleHttp(router, request, response) {
 
 	if (type === "redirect") {
 		response.writeHead(301, {
-			Location: route.target.href.replace(/\$(\d+)\b/g, (_, b) => match[b]),
+			Location: route.target.href.replace(
+				/\$(\d+)\b/g,
+				(_, b) => match?.[b] || "",
+			),
 		});
 		response.end();
 	} else {
@@ -134,7 +161,11 @@ function handleHttp(router, request, response) {
 	}
 }
 
-function handleHttps(router, request, response) {
+function handleHttps(
+	router: Router,
+	request: IncomingMessage,
+	response: ServerResponse,
+): void {
 	const proxy = createProxy(router, request, response);
 	if (!proxy) {
 		return;
@@ -146,7 +177,11 @@ function handleHttps(router, request, response) {
 	});
 }
 
-function createProxyServer(router, certificates, { httpPort, httpsPort }) {
+function createProxyServer(
+	router: Router,
+	certificates: Record<string, Certificate>,
+	{ httpPort, httpsPort }: { httpPort: number; httpsPort: number },
+): () => void {
 	const httpServer = http
 		.createServer((request, response) => {
 			handleHttp(router, request, response);
@@ -157,7 +192,10 @@ function createProxyServer(router, certificates, { httpPort, httpsPort }) {
 	const httpsServer = https
 		.createServer(
 			{
-				SNICallback: (serverName, callback) => {
+				SNICallback: (
+					serverName: string,
+					callback: (err: Error | null, ctx?: SecureContext) => void,
+				) => {
 					const firstCertificateKey = Object.keys(certificates)[0];
 
 					const matchingCertificateKey = Object.keys(certificates).find(
@@ -165,9 +203,9 @@ function createProxyServer(router, certificates, { httpPort, httpsPort }) {
 							return key === serverName || matchWildcardDomain(key, serverName);
 						},
 					);
-					const matchingCertificate =
-						certificates[matchingCertificateKey] ||
-						certificates[firstCertificateKey];
+					const matchingCertificate = matchingCertificateKey
+						? certificates[matchingCertificateKey]
+						: certificates[firstCertificateKey];
 
 					return callback(null, matchingCertificate.secureContext);
 				},
@@ -178,14 +216,17 @@ function createProxyServer(router, certificates, { httpPort, httpsPort }) {
 		)
 		.listen(httpsPort);
 
-	httpsServer.on("upgrade", (request, socket, head) => {
-		const proxy = createProxy(router, request);
-		if (!proxy) {
-			socket.destroy();
-			return;
-		}
-		proxy.ws(request, socket, head);
-	});
+	httpsServer.on(
+		"upgrade",
+		(request: IncomingMessage, socket: Socket, head: Buffer) => {
+			const proxy = createProxy(router, request);
+			if (!proxy) {
+				socket.destroy();
+				return;
+			}
+			proxy.ws(request, socket, head);
+		},
+	);
 
 	console.log("Listening on port", httpsPort);
 

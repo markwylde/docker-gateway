@@ -1,14 +1,17 @@
-import http from "node:http";
+import http, { type IncomingMessage } from "node:http";
 import finalStream from "final-stream";
-import getDockerUrl from "../utils/getDockerUrl.js";
-import getRoutes from "../utils/getRoutes.js";
+import type { DockerContainer, DockerService, Router } from "../types.ts";
+import getDockerUrl from "../utils/getDockerUrl.ts";
+import getRoutes from "../utils/getRoutes.ts";
 
-const httpGet = (options) =>
+const httpGet = <T = unknown>(options: http.RequestOptions): Promise<T> =>
 	new Promise((resolve, reject) => {
-		const callback = async (response) => {
+		const callback = async (response: IncomingMessage) => {
 			if (response.statusCode !== 200) {
 				try {
-					const data = await finalStream(response).then(JSON.parse);
+					const data = await finalStream(response).then((buffer) =>
+						JSON.parse(buffer.toString()),
+					);
 					console.log("ERROR", response.statusCode, data);
 				} catch (error) {
 					console.log("ERROR", error);
@@ -21,7 +24,9 @@ const httpGet = (options) =>
 
 			response.on("error", (data) => console.error(data));
 
-			const data = await finalStream(response).then(JSON.parse);
+			const data = await finalStream(response).then((buffer) =>
+				JSON.parse(buffer.toString()),
+			);
 			resolve(data);
 			response.destroy();
 		};
@@ -29,7 +34,10 @@ const httpGet = (options) =>
 		http.request(options, callback).end();
 	});
 
-async function listRoutesFromServices(router, stoppingContainers = new Set()) {
+async function listRoutesFromServices(
+	router: Router,
+	stoppingContainers: Set<string> = new Set(),
+): Promise<void> {
 	// Log the current stopping containers
 	if (stoppingContainers.size > 0) {
 		console.log(
@@ -37,17 +45,17 @@ async function listRoutesFromServices(router, stoppingContainers = new Set()) {
 		);
 	}
 
-	const containers = await httpGet({
+	const containers = await httpGet<DockerContainer[]>({
 		...getDockerUrl(),
 		path: "/v1.24/containers/json",
 	});
-	const services = await httpGet({
+	const services = await httpGet<DockerService[]>({
 		...getDockerUrl(),
 		path: "/v1.24/services",
 	});
 
 	// Filter out containers that are in the process of stopping
-	const filteredContainers = containers.filter((container) => {
+	const filteredContainers = containers.filter((container: DockerContainer) => {
 		const containerId = container.Id || container.ID;
 		const containerName = container.Names?.[0]?.replace(/^\//, "") || "unknown";
 		const labels = container.Labels || {};
@@ -75,7 +83,9 @@ async function listRoutesFromServices(router, stoppingContainers = new Set()) {
 		}
 
 		// Check if this container is in the stopping containers set
-		const isStoppingById = stoppingContainers.has(containerId);
+		const isStoppingById = containerId
+			? stoppingContainers.has(containerId)
+			: false;
 		const isStoppingByName = stoppingContainers.has(containerName);
 		const isStoppingByService =
 			serviceName && stoppingContainers.has(serviceName);
@@ -92,12 +102,14 @@ async function listRoutesFromServices(router, stoppingContainers = new Set()) {
 	});
 
 	// Filter out services that are in the process of stopping
-	const filteredServices = services.filter((service) => {
+	const filteredServices = services.filter((service: DockerService) => {
 		const serviceId = service.ID || service.Id;
 		const serviceName = service.Spec?.Name || "unknown";
 
 		// Check if this service is in the stopping containers set
-		const isStoppingById = stoppingContainers.has(serviceId);
+		const isStoppingById = serviceId
+			? stoppingContainers.has(serviceId)
+			: false;
 		const isStoppingByName = stoppingContainers.has(serviceName);
 
 		// If the service is stopping, log it and filter it out
@@ -118,9 +130,14 @@ async function listRoutesFromServices(router, stoppingContainers = new Set()) {
 		);
 	}
 
-	const all = [...filteredContainers, ...filteredServices];
+	const all: (DockerContainer | DockerService)[] = [
+		...filteredContainers,
+		...filteredServices,
+	];
 
-	const routes = all.flatMap(getRoutes).filter((route) => route);
+	const routes = all
+		.flatMap(getRoutes)
+		.filter((route): route is NonNullable<typeof route> => route !== null);
 
 	// Log the routes that will be set
 	console.log(

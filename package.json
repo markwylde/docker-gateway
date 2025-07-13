@@ -3,9 +3,10 @@
 	"version": "5.12.1",
 	"type": "module",
 	"description": "This project provides a gateway for use with Docker, allowing you to proxy multiple services from multiple domains.",
-	"main": "lib/index.js",
+	"main": "lib/index.ts",
 	"scripts": {
-		"test": "node --test --experimental-test-coverage --test-coverage-include=\"**/*.js\"",
+		"test": "node --experimental-strip-types --test test/**/*.test.ts",
+		"test:types": "tsc --noEmit",
 		"lint": "biome check .",
 		"lint:fix": "biome check --write .",
 		"format": "biome format --write ."
@@ -38,6 +39,11 @@
 	},
 	"homepage": "https://github.com/markwylde/docker-gateway#readme",
 	"devDependencies": {
-		"@biomejs/biome": "2.1.1"
+		"@biomejs/biome": "2.1.1",
+		"@types/http-proxy": "^1.17.16",
+		"@types/minimist": "^1.2.5",
+		"@types/node": "^24.0.13",
+		"@types/ws": "^8.18.1",
+		"typescript": "^5.8.3"
 	}
 }
