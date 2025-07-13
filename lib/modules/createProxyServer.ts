@@ -103,7 +103,7 @@ function createProxy(
 	return httpProxy.createProxyServer({
 		target: proxyUrl,
 		ws: true,
-		xfwd: false,
+		xfwd: true,
 	});
 }
 
