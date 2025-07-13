@@ -2,7 +2,7 @@ name: Build docker images
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
 
 permissions:
   packages: write
