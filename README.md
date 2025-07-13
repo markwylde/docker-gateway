@@ -29,8 +29,6 @@ You can optionally prefix any rule with a client IP address or CIDR range to res
 <CLIENT_IP_OR_CIDR> -> <RULE>
 ```
 
-This is particularly useful when running behind Docker Swarm or other reverse proxies that provide the client's real IP via the `X-Forwarded-For` header.
-
 For example:
 - `127.0.0.1 -> http://example.com/(.*) -> http://backend:8080/$1` - Only accepts requests from client IP 127.0.0.1
 - `100.0.0.0/8 -> https://admin.example.com/(.*) -> http://admin:8080/$1` - Only accepts requests from Tailscale network (100.0.0.0/8)
@@ -38,7 +36,7 @@ For example:
 
 Routes without a client IP prefix will accept requests from any client IP address.
 
-**Note**: When running behind Docker Swarm or other proxies, docker-gateway will use the `X-Forwarded-For` header to determine the real client IP. If this header is not present, it falls back to the direct connection IP.
+**Note**: docker-gateway uses the direct connection IP address (socket.remoteAddress) for client IP filtering. X-Forwarded-For headers are not trusted and are ignored for security reasons.
 
 ## Example
 ```yaml

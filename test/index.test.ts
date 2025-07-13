@@ -425,12 +425,10 @@ describe("Docker Gateway Tests", () => {
 			uiPort: 0,
 		});
 
-		// Test that requests from 127.0.0.1 are allowed
+		// Test that requests from 127.0.0.1 are allowed (connecting from localhost)
 		const response = await axios("http://127.0.0.1:9080/test", {
 			headers: {
 				host: "ipfiltered.test",
-				// Simulate X-Forwarded-For header that would be set by Docker Swarm
-				"x-forwarded-for": "127.0.0.1",
 			},
 			validateStatus: () => true,
 		});
@@ -445,31 +443,8 @@ describe("Docker Gateway Tests", () => {
 		stop();
 	});
 
-	test("http - client IP filtering blocks non-matching IP", async () => {
-		const stop = await createDockerGateway({
-			httpPort: 9080,
-			httpsPort: 9443,
-			uiPort: 0,
-		});
-
-		// Test that requests from 192.168.1.1 are blocked (not 127.0.0.1)
-		const response = await axios("http://127.0.0.1:9080/test", {
-			headers: {
-				host: "ipfiltered.test",
-				// Simulate X-Forwarded-For header with non-matching IP
-				"x-forwarded-for": "192.168.1.1",
-			},
-			validateStatus: () => true,
-		});
-
-		assert.strictEqual(
-			response.status,
-			404,
-			"should return 404 for non-matching IP",
-		);
-
-		stop();
-	});
+	// This test is no longer valid since X-Forwarded-For headers are ignored
+	// IP filtering now only uses the actual remote address
 
 	test("http - IP filtering blocks non-matching IP", async () => {
 		const stop = await createDockerGateway({
@@ -544,34 +519,8 @@ describe("Docker Gateway Tests", () => {
 	});
 
 	// Comprehensive client IP filtering tests
-	test("https - Tailscale CIDR range filtering allows IPs in range", async () => {
-		const stop = await createDockerGateway({
-			httpPort: 9080,
-			httpsPort: 9443,
-			uiPort: 0,
-		});
-
-		// Test that requests from Tailscale IP range (100.0.0.0/8) are allowed
-		const response = await axios("https://127.0.0.1:9443/test", {
-			headers: {
-				host: "tailscale-only.test",
-				"x-forwarded-for": "100.75.140.94", // Your Tailscale IP
-			},
-			httpsAgent: new https.Agent({
-				rejectUnauthorized: false,
-			}),
-			validateStatus: () => true,
-		});
-
-		assert.strictEqual(response.status, 200, "should allow Tailscale IP");
-		assert.strictEqual(
-			response.data,
-			"request.url=/tailscale/test",
-			"has correct response text",
-		);
-
-		stop();
-	});
+	// This test is no longer valid since X-Forwarded-For headers are ignored
+	// To test Tailscale filtering, you would need to actually connect from a Tailscale IP
 
 	test("https - Tailscale CIDR range filtering blocks IPs outside range", async () => {
 		const stop = await createDockerGateway({
@@ -580,11 +529,10 @@ describe("Docker Gateway Tests", () => {
 			uiPort: 0,
 		});
 
-		// Test that requests from non-Tailscale IPs are blocked
+		// When connecting from localhost (127.0.0.1), it's not in Tailscale range
 		const response = await axios("https://127.0.0.1:9443/test", {
 			headers: {
 				host: "tailscale-only.test",
-				"x-forwarded-for": "192.168.1.100", // Not in Tailscale range
 			},
 			httpsAgent: new https.Agent({
 				rejectUnauthorized: false,
@@ -597,31 +545,8 @@ describe("Docker Gateway Tests", () => {
 		stop();
 	});
 
-	test("http - Private network CIDR filtering", async () => {
-		const stop = await createDockerGateway({
-			httpPort: 9080,
-			httpsPort: 9443,
-			uiPort: 0,
-		});
-
-		// Test that requests from private network range are allowed
-		const response = await axios("http://127.0.0.1:9080/test", {
-			headers: {
-				host: "private-only.test",
-				"x-forwarded-for": "192.168.50.50",
-			},
-			validateStatus: () => true,
-		});
-
-		assert.strictEqual(response.status, 200, "should allow private network IP");
-		assert.strictEqual(
-			response.data,
-			"request.url=/private/test",
-			"has correct response text",
-		);
-
-		stop();
-	});
+	// This test is no longer valid since X-Forwarded-For headers are ignored
+	// Private network filtering would need actual connections from private IPs
 
 	test("http - Public route with no IP restriction", async () => {
 		const stop = await createDockerGateway({
@@ -630,11 +555,10 @@ describe("Docker Gateway Tests", () => {
 			uiPort: 0,
 		});
 
-		// Test that public routes work with any IP
+		// Test that public routes work with any IP (connecting from localhost)
 		const response = await axios("http://127.0.0.1:9080/test", {
 			headers: {
 				host: "public.test",
-				"x-forwarded-for": "8.8.8.8", // Public IP
 			},
 			validateStatus: () => true,
 		});
@@ -653,58 +577,25 @@ describe("Docker Gateway Tests", () => {
 		stop();
 	});
 
-	test("http - X-Forwarded-For header parsing with multiple IPs", async () => {
+	// Test removed: X-Forwarded-For headers are no longer used for client IP detection
+
+	test("http - Uses remoteAddress for client IP", async () => {
 		const stop = await createDockerGateway({
 			httpPort: 9080,
 			httpsPort: 9443,
 			uiPort: 0,
 		});
 
-		// Test X-Forwarded-For with multiple IPs (first one should be used)
-		const response = await axios("http://127.0.0.1:9080/test", {
-			headers: {
-				host: "ipfiltered.test",
-				"x-forwarded-for": "127.0.0.1, 10.0.0.1, 192.168.1.1",
-			},
-			validateStatus: () => true,
-		});
-
-		assert.strictEqual(
-			response.status,
-			200,
-			"should use first IP from X-Forwarded-For",
-		);
-		assert.strictEqual(
-			response.data,
-			"request.url=/client-filtered/test",
-			"has correct response text",
-		);
-
-		stop();
-	});
-
-	test("http - Falls back to remoteAddress when no X-Forwarded-For", async () => {
-		const stop = await createDockerGateway({
-			httpPort: 9080,
-			httpsPort: 9443,
-			uiPort: 0,
-		});
-
-		// Test without X-Forwarded-For header (should use remoteAddress)
+		// Test that remoteAddress is used for client IP
 		// Since we're connecting from localhost, remoteAddress will be 127.0.0.1
 		const response = await axios("http://127.0.0.1:9080/test", {
 			headers: {
 				host: "ipfiltered.test",
-				// No X-Forwarded-For header
 			},
 			validateStatus: () => true,
 		});
 
-		assert.strictEqual(
-			response.status,
-			200,
-			"should fall back to remoteAddress",
-		);
+		assert.strictEqual(response.status, 200, "should use remoteAddress");
 		assert.strictEqual(
 			response.data,
 			"request.url=/client-filtered/test",

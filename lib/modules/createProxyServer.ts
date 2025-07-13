@@ -59,16 +59,17 @@ function createProxy(
 			: "http";
 	const url = `${protocol}://${request.headers.host}${request.url || ""}`;
 
-	// Get client IP from X-Forwarded-For header (if behind proxy) or socket
-	const xForwardedFor = request.headers["x-forwarded-for"] as string;
-	const clientIp =
-		xForwardedFor?.split(",")[0]?.trim() || request.socket.remoteAddress;
+	// Use only the remote socket address for client IP
+	const clientIp = request.socket.remoteAddress;
 
 	console.log("DEBUG: Client IP detection in createProxy", {
-		xForwardedFor,
 		socketRemoteAddress: request.socket.remoteAddress,
-		resolvedClientIp: clientIp,
+		socketRemoteFamily: request.socket.remoteFamily,
+		socketRemotePort: request.socket.remotePort,
+		socketLocalAddress: request.socket.localAddress,
+		socketLocalPort: request.socket.localPort,
 		headers: request.headers,
+		resolvedClientIp: clientIp,
 	});
 
 	const { route, match } = findRoute(router, url, clientIp);
@@ -93,7 +94,7 @@ function createProxy(
 	return httpProxy.createProxyServer({
 		target: proxyUrl,
 		ws: true,
-		xfwd: true,
+		xfwd: false,
 	});
 }
 
@@ -105,16 +106,14 @@ function handleHttp(
 	const url = `http://${request.headers.host}${request.url || ""}`;
 	const remoteAddress = request.socket.remoteAddress;
 
-	// Get client IP from X-Forwarded-For header (if behind proxy) or socket
-	const xForwardedFor = request.headers["x-forwarded-for"] as string;
-	const clientIp = xForwardedFor?.split(",")[0]?.trim() || remoteAddress;
+	// Use only the remote socket address for client IP
+	const clientIp = remoteAddress;
 
 	// Debug logging for all requests
 	console.log("DEBUG: handleHttp request", {
 		host: request.headers.host,
 		remoteAddress,
 		clientIp,
-		"x-forwarded-for": request.headers["x-forwarded-for"],
 		url,
 		method: request.method,
 	});
