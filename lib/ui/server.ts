@@ -1,12 +1,22 @@
 import { readFile } from "node:fs/promises";
-import http from "node:http";
+import http, { type Server } from "node:http";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Eta } from "eta";
+import type { UiServer as IUiServer, Route } from "../types.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-class UiServer {
+interface Change {
+	timestamp: string;
+	event: string;
+}
+
+class UiServer implements IUiServer {
+	private changes: Change[] = [];
+	private routes: Route[] = [];
+	private eta: Eta;
+
 	constructor() {
 		this.changes = [];
 		this.routes = [];
@@ -15,7 +25,11 @@ class UiServer {
 		});
 	}
 
-	logChange(event) {
+	logEvent(event: string): void {
+		this.logChange(event);
+	}
+
+	logChange(event: string): void {
 		this.changes.unshift({
 			timestamp: new Date().toLocaleString(),
 			event,
@@ -27,7 +41,7 @@ class UiServer {
 		}
 	}
 
-	updateRoutes(routes) {
+	updateRoutes(routes: Route[]): void {
 		const oldRoutes = JSON.stringify(this.routes);
 		const oldRoutesArray = [...this.routes];
 		this.routes = routes;
@@ -79,12 +93,12 @@ class UiServer {
 		}
 	}
 
-	async start(port = 8080) {
+	async start(port: number | string = 8080): Promise<Server> {
 		// If port is 0, disable UI server (useful for tests)
-		if (port === 0) {
+		if (port === 0 || port === "0") {
 			return {
 				close: () => {},
-			};
+			} as unknown as Server;
 		}
 
 		const templateContent = await readFile(
@@ -108,7 +122,7 @@ class UiServer {
 			res.end("Not found");
 		});
 
-		server.listen(port, () => {
+		server.listen(Number(port), () => {
 			console.log(`UI server listening on port ${port}`);
 		});
 

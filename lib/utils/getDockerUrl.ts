@@ -1,4 +1,6 @@
-function getDockerUrl() {
+import type { RequestOptions } from "node:http";
+
+function getDockerUrl(): Pick<RequestOptions, "socketPath" | "host" | "port"> {
 	const dockerHost = process.env.DOCKER_URL || "/var/run/docker.sock";
 
 	if (dockerHost.startsWith("/") || dockerHost.startsWith("unix://")) {

@@ -1,19 +1,23 @@
-import http from "node:http";
+import http, { type IncomingMessage } from "node:http";
 import ndJsonFe from "ndjson-fe";
-import getDockerUrl from "../utils/getDockerUrl.js";
-import listRoutesFromServices from "./listRoutesFromServices.js";
+import type { Router, UiServer } from "../types.ts";
+import getDockerUrl from "../utils/getDockerUrl.ts";
+import listRoutesFromServices from "./listRoutesFromServices.ts";
 
 // Modified listRoutesFromServices function that filters out stopping containers
-async function listRoutesFromServicesFiltered(router, stoppingContainers) {
+async function listRoutesFromServicesFiltered(
+	router: Router,
+	stoppingContainers: Set<string>,
+): Promise<void> {
 	// Call the original function but filter out stopping containers
 	await listRoutesFromServices(router, stoppingContainers);
 }
 
 function watchDockerForChanges(
-	router,
-	stoppingContainers = new Set(),
-	uiServer,
-) {
+	router: Router,
+	stoppingContainers: Set<string> = new Set(),
+	uiServer?: UiServer,
+): Promise<() => void> {
 	return new Promise((resolve) => {
 		const options = {
 			...getDockerUrl(),
@@ -21,7 +25,7 @@ function watchDockerForChanges(
 			path: "/events",
 		};
 
-		const callback = (response) => {
+		const callback = (response: IncomingMessage) => {
 			if (response.statusCode === 200) {
 				console.log("Watching docker for changes");
 			}
@@ -29,7 +33,7 @@ function watchDockerForChanges(
 
 			const feed = ndJsonFe();
 
-			feed.on("next", (data) => parseDockerEvent(data));
+			feed.on("next", (data) => parseDockerEvent(data as DockerEvent));
 			feed.on("error", (data) => console.error(data));
 			feed.on("end", () => {
 				console.log("The stream has finished");
@@ -43,7 +47,19 @@ function watchDockerForChanges(
 		};
 
 		// Log all events for debugging
-		function parseDockerEvent(response) {
+		interface DockerEvent {
+			Type?: string;
+			Action?: string;
+			Actor?: {
+				ID?: string;
+				Attributes?: {
+					name?: string;
+					image?: string;
+				};
+			};
+		}
+
+		function parseDockerEvent(response: DockerEvent): void {
 			console.log("Docker event received:", JSON.stringify(response, null, 2));
 
 			if (response.Type === "container") {
@@ -65,7 +81,7 @@ function watchDockerForChanges(
 				console.log(
 					`Docker event: ${response.Type} ${action} for ${containerName} (${containerId}), image: ${imageName}, service: ${serviceName}`,
 				);
-				uiServer?.logChange(`Container ${containerName} ${action}`);
+				uiServer?.logEvent(`Container ${containerName} ${action}`);
 
 				// Define events that should trigger immediate route removal
 				const stopEvents = [
@@ -78,7 +94,7 @@ function watchDockerForChanges(
 				];
 
 				// Immediately remove routes for containers that should not receive traffic
-				if (stopEvents.includes(action)) {
+				if (action && stopEvents.includes(action)) {
 					console.log(
 						`Container ${containerName} (${containerId}) is ${action}, removing routes immediately`,
 					);
@@ -104,7 +120,9 @@ function watchDockerForChanges(
 					}
 
 					// Try to remove routes by container ID
-					const removedById = removeContainerRoutes(containerId);
+					const removedById = containerId
+						? removeContainerRoutes(containerId)
+						: false;
 
 					// Also try to remove routes by container name if ID removal didn't work
 					if (!removedById && containerName && containerName !== "unknown") {
@@ -129,7 +147,7 @@ function watchDockerForChanges(
 					// Always refresh all routes after removing specific ones
 					// This ensures the router state is consistent, but filter out stopping containers
 					listRoutesFromServicesFiltered(router, stoppingContainers);
-				} else if (["unpause", "start", "create"].includes(action)) {
+				} else if (action && ["unpause", "start", "create"].includes(action)) {
 					// When a container starts, unpauses, or is created, remove it from stopping containers
 					if (containerId) {
 						stoppingContainers.delete(containerId);
@@ -171,10 +189,10 @@ function watchDockerForChanges(
 				console.log(
 					`Docker service event: ${action} for ${serviceName} (${serviceId})`,
 				);
-				uiServer?.logChange(`Service ${serviceName} ${action}`);
+				uiServer?.logEvent(`Service ${serviceName} ${action}`);
 
 				// For service removal events, immediately remove routes
-				if (["remove", "delete"].includes(action)) {
+				if (action && ["remove", "delete"].includes(action)) {
 					console.log(
 						`Service ${serviceName} (${serviceId}) is ${action}, removing routes immediately`,
 					);
@@ -193,7 +211,9 @@ function watchDockerForChanges(
 						);
 					}
 
-					removeContainerRoutes(serviceId);
+					if (serviceId) {
+						removeContainerRoutes(serviceId);
+					}
 					if (serviceName && serviceName !== "unknown") {
 						removeContainerRoutes(serviceName);
 					}
@@ -210,7 +230,9 @@ function watchDockerForChanges(
 
 		// Helper function to extract service name from Docker Compose container name
 		// Docker Compose names follow the pattern: project_service_1
-		function extractServiceName(containerName) {
+		function extractServiceName(
+			containerName: string | undefined,
+		): string | null {
 			if (!containerName || containerName === "unknown") {
 				return null;
 			}
@@ -239,10 +261,10 @@ function watchDockerForChanges(
 			return containerName;
 		}
 
-		function removeContainerRoutes(containerId) {
+		function removeContainerRoutes(containerId: string | null): boolean {
 			if (!containerId) {
 				console.log("No container ID provided, cannot remove routes");
-				return;
+				return false;
 			}
 
 			// Get current routes
@@ -256,7 +278,9 @@ function watchDockerForChanges(
 			console.log(`Container name extracted: ${containerName}`);
 
 			// Extract service name if this is a Docker Compose container
-			const serviceName = extractServiceName(containerName);
+			const serviceName = containerName
+				? extractServiceName(containerName)
+				: null;
 			if (serviceName) {
 				console.log(`Service name extracted: ${serviceName}`);
 			}
@@ -318,7 +342,9 @@ function watchDockerForChanges(
 
 				// If no routes were found by ID, try to find by name pattern
 				// This is a fallback for when the container ID doesn't match directly
-				const containerNameParts = containerName.split(/[-_]/);
+				const containerNameParts = containerName
+					? containerName.split(/[-_]/)
+					: [];
 				if (containerNameParts.length > 1) {
 					console.log(
 						`Trying to match by container name parts: ${containerNameParts.join(", ")}`,
@@ -361,7 +387,7 @@ function watchDockerForChanges(
 		const request = http.request(options, callback);
 		request.on("error", (error) => {
 			console.error("Docker event stream error:", error);
-			uiServer?.logChange(`Error watching Docker events: ${error.message}`);
+			uiServer?.logEvent(`Error watching Docker events: ${error.message}`);
 		});
 		request.end();
 	});

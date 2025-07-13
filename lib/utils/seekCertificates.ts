@@ -1,26 +1,31 @@
 import { exec } from "node:child_process";
 import fs from "node:fs";
-import tls from "node:tls";
+import tls, { type SecureContext } from "node:tls";
 import util from "node:util";
 import { globby } from "globby";
+import type { Certificate } from "../types.ts";
 
 const execPromise = util.promisify(exec);
 
-function createSecureContext(cert, key) {
+function createSecureContext(cert: string, key: string): SecureContext | false {
 	try {
 		return tls.createSecureContext({
 			cert,
 			key,
 		});
 	} catch (error) {
-		if (error.code === "ERR_OSSL_X509_KEY_VALUES_MISMATCH") {
+		if (
+			error instanceof Error &&
+			"code" in error &&
+			error.code === "ERR_OSSL_X509_KEY_VALUES_MISMATCH"
+		) {
 			return false;
 		}
 		throw error;
 	}
 }
 
-async function getDomainsFromFile(path) {
+async function getDomainsFromFile(path: string): Promise<string[]> {
 	const data = await fs.promises.readFile(path, "utf8");
 	const pemCerts = data.match(
 		/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g,
@@ -33,7 +38,7 @@ async function getDomainsFromFile(path) {
 	return Promise.all(pemCerts.map(getDomainsFromCert)).then((i) => i.flat());
 }
 
-async function getDomainsFromCert(pemCert) {
+async function getDomainsFromCert(pemCert: string): Promise<string[]> {
 	const { stdout } = await execPromise(
 		`echo '${pemCert}' | openssl x509 -noout -text`,
 	);
@@ -47,15 +52,20 @@ async function getDomainsFromCert(pemCert) {
 		altNamesMatch ? altNamesMatch[1].trim().split(/\s*,\s*/) : []
 	).map((altName) => altName.replace("DNS:", ""));
 
-	return [commonName, ...altNames].flat();
+	return [commonName, ...altNames].filter(
+		(name): name is string => name !== null,
+	);
 }
 
-async function seekCertificiates() {
+async function seekCertificiates(): Promise<Record<string, Certificate>> {
 	const files = await globby([process.env.CERT_PATTERN || "/certs/**.pem"]);
 
-	const certs = [];
-	const keys = [];
-	const pairs = {};
+	const certs: Array<{ domain: string; data: string; file: string }> = [];
+	const keys: Array<{ file: string; data: string }> = [];
+	const pairs: Record<
+		string,
+		Certificate & { domain?: string; file?: string }
+	> = {};
 
 	for (const file of files) {
 		const data = await fs.promises.readFile(file, "utf8");
@@ -77,11 +87,17 @@ async function seekCertificiates() {
 	}
 
 	for (const cert of certs) {
-		pairs[cert.domain] = cert;
+		pairs[cert.domain] = {
+			...cert,
+			key: "",
+			cert: cert.data,
+			secureContext: {} as SecureContext, // will be replaced below
+		};
 		for (const key of keys) {
 			const secureContext = createSecureContext(cert.data, key.data);
 			if (secureContext) {
-				pairs[cert.domain].key = key;
+				pairs[cert.domain].key = key.data;
+				pairs[cert.domain].cert = cert.data;
 				pairs[cert.domain].secureContext = secureContext;
 				break;
 			}

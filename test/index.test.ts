@@ -4,13 +4,13 @@ import https from "node:https";
 import test, { after, before, describe } from "node:test";
 import axios from "axios";
 import WebSocket, { WebSocketServer } from "ws";
-import createDockerGateway from "../lib/index.js";
+import createDockerGateway from "../lib/index.ts";
 
 process.env.DOCKER_URL = "http://0.0.0.0:9999";
 process.env.CERT_PATTERN = "./certs/**.pem";
 
 const mockWSServer = new WebSocketServer({ noServer: true });
-mockWSServer.on("connection", function connection(ws) {
+mockWSServer.on("connection", function connection(ws: WebSocket) {
 	ws.on("error", console.error);
 	ws.send("done");
 });
@@ -20,13 +20,18 @@ const mockService = http.createServer((request, response) => {
 });
 
 mockService.on("upgrade", function upgrade(request, socket, head) {
-	mockWSServer.handleUpgrade(request, socket, head, function done(ws) {
-		mockWSServer.emit("connection", ws, request);
-	});
+	mockWSServer.handleUpgrade(
+		request,
+		socket,
+		head,
+		function done(ws: WebSocket) {
+			mockWSServer.emit("connection", ws, request);
+		},
+	);
 });
 
-let mockDocker;
-let mockServiceServer;
+let mockDocker: http.Server;
+let mockServiceServer: http.Server;
 
 before(() => {
 	mockServiceServer = mockService.listen(9998);
@@ -309,7 +314,7 @@ describe("Docker Gateway Tests", () => {
 			ws.send("something");
 		});
 
-		ws.on("message", (message) => {
+		ws.on("message", (message: Buffer) => {
 			ws.close();
 			stop();
 			assert.strictEqual(message.toString(), "done");
@@ -331,7 +336,7 @@ describe("Docker Gateway Tests", () => {
 			},
 		});
 
-		ws.on("error", (error) => {
+		ws.on("error", (error: Error) => {
 			ws.close();
 			stop();
 			assert.strictEqual(error.message, "socket hang up");
@@ -357,7 +362,7 @@ describe("Docker Gateway Tests", () => {
 			ws.send("something");
 		});
 
-		ws.on("message", (message) => {
+		ws.on("message", (message: Buffer) => {
 			ws.close();
 			stop();
 			assert.strictEqual(message.toString(), "done");

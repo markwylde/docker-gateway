@@ -1,25 +1,31 @@
 import path from "node:path";
 import minimist from "minimist";
-import createProxyServer from "./modules/createProxyServer.js";
-import listRoutesFromServices from "./modules/listRoutesFromServices.js";
-import watchDockerForChanges from "./modules/watchDockerForChanges.js";
-import UiServer from "./ui/server.js";
-import createRouter from "./utils/createRouter.js";
-import seekCertificates from "./utils/seekCertificates.js";
+import createProxyServer from "./modules/createProxyServer.ts";
+import listRoutesFromServices from "./modules/listRoutesFromServices.ts";
+import watchDockerForChanges from "./modules/watchDockerForChanges.ts";
+import UiServer from "./ui/server.ts";
+import createRouter from "./utils/createRouter.ts";
+import seekCertificates from "./utils/seekCertificates.ts";
 
-const defaultOptions = {
+interface DockerGatewayOptions {
+	httpPort?: number | string;
+	httpsPort?: number | string;
+	uiPort?: number | string;
+}
+
+const defaultOptions: DockerGatewayOptions = {
 	httpPort: process.env.HTTP_PORT || 80,
 	httpsPort: process.env.HTTPS_PORT || 443,
 	uiPort: process.env.UI_PORT || 8080,
 };
 
 export default async function createDockerGateway(
-	passedOptions = defaultOptions,
-) {
-	const options = {
+	passedOptions: DockerGatewayOptions = defaultOptions,
+): Promise<() => void> {
+	const options: Required<DockerGatewayOptions> = {
 		...defaultOptions,
 		...JSON.parse(JSON.stringify(passedOptions)),
-	};
+	} as Required<DockerGatewayOptions>;
 
 	const router = createRouter();
 	const certificates = await seekCertificates();
@@ -39,7 +45,7 @@ export default async function createDockerGateway(
 	};
 
 	// Initialize the stoppingContainers set
-	const stoppingContainers = new Set();
+	const stoppingContainers = new Set<string>();
 
 	// Initial route loading
 	await listRoutesFromServices(router, stoppingContainers);
@@ -51,7 +57,10 @@ export default async function createDockerGateway(
 		uiServer,
 	);
 
-	const stopServers = await createProxyServer(router, certificates, options);
+	const stopServers = await createProxyServer(router, certificates, {
+		httpPort: Number(options.httpPort),
+		httpsPort: Number(options.httpsPort),
+	});
 
 	return () => {
 		stopWatching();
@@ -64,7 +73,11 @@ const runningAsMain =
 	import.meta.url.endsWith(`${path.basename(process.argv[1])}/index.js`);
 
 if (runningAsMain) {
-	const argv = minimist(process.argv);
+	const argv = minimist(process.argv) as {
+		"http-port"?: string;
+		"https-port"?: string;
+		"ui-port"?: string;
+	};
 	createDockerGateway({
 		httpPort: argv["http-port"],
 		httpsPort: argv["https-port"],

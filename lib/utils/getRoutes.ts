@@ -1,13 +1,17 @@
-function getRoutes(service) {
+import type { DockerContainer, DockerService, Route } from "../types.ts";
+
+function getRoutes(service: DockerService | DockerContainer): (Route | null)[] {
 	const labels = {
 		...service.Labels,
-		...service.Spec?.Labels,
-		...service.Config?.Labels,
+		...("Spec" in service ? service.Spec?.Labels : undefined),
+		...("Config" in service ? service.Config?.Labels : undefined),
 	};
 
 	const serviceId = service.Id || service.ID;
 	const serviceName =
-		service.Spec?.Name || service.Names?.[0]?.replace(/^\//, "") || "unknown";
+		("Spec" in service ? service.Spec?.Name : undefined) ||
+		("Names" in service ? service.Names?.[0]?.replace(/^\//, "") : undefined) ||
+		"unknown";
 
 	// Log the service information
 	console.log(`Getting routes for service: ${serviceName} (${serviceId})`);
@@ -48,7 +52,7 @@ function getRoutes(service) {
 				serviceName,
 				target: new URL(target),
 				type,
-			};
+			} as Route;
 		}
 
 		return null;
