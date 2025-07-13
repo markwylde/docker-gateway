@@ -36,14 +36,20 @@ function findRoute(
 			}
 
 			// Debug logging for IP filtering
-			if (requestUrl.includes("ipfiltered.test")) {
-				console.log("DEBUG: IP filtering check", {
-					routeBindIp: route.bindIp,
-					localAddress,
-					normalizedLocalAddress,
-					routeTarget: route.target.href,
-				});
-			}
+			console.log("DEBUG: IP filtering check", {
+				host: requestUrl,
+				routeBindIp: route.bindIp,
+				localAddress,
+				normalizedLocalAddress,
+				process: {
+					pid: process.pid,
+					platform: process.platform,
+				},
+				socket: {
+					localPort: 443, // Will be updated in actual request
+				},
+				routeTarget: route.target.href,
+			});
 
 			// Handle IPv6 loopback (::1) as 127.0.0.1
 			if (normalizedLocalAddress === "::1" && route.bindIp === "127.0.0.1") {
@@ -196,8 +202,10 @@ function createProxyServer(
 		.createServer((request, response) => {
 			handleHttp(router, request, response);
 		})
-		.listen(httpPort);
-	console.log("Listening on port", httpPort);
+		.listen(httpPort, "0.0.0.0", () => {
+			const addr = httpServer.address();
+			console.log("HTTP Server listening on", addr);
+		});
 
 	const httpsServer = https
 		.createServer(
@@ -224,7 +232,10 @@ function createProxyServer(
 				handleHttps(router, request, response);
 			},
 		)
-		.listen(httpsPort);
+		.listen(httpsPort, "0.0.0.0", () => {
+			const addr = httpsServer.address();
+			console.log("HTTPS Server listening on", addr);
+		});
 
 	httpsServer.on(
 		"upgrade",
@@ -237,8 +248,6 @@ function createProxyServer(
 			proxy.ws(request, socket, head);
 		},
 	);
-
-	console.log("Listening on port", httpsPort);
 
 	return () => {
 		httpServer.close();
