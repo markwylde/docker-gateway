@@ -26,14 +26,18 @@ function getRoutes(service: DockerService | DockerContainer): (Route | null)[] {
 		console.log(`Adding route to "${serviceId}" from ${configValue}`);
 
 		if (configValue) {
-			let bindIp = null;
+			const bindIp = null;
+			let clientIpRange = null;
 			let routeConfig = configValue;
 
-			// Check if the config starts with an IP address prefix
-			const ipMatch = configValue.match(/^(\d+\.\d+\.\d+\.\d+)\s*->\s*(.+)$/);
-			if (ipMatch) {
-				bindIp = ipMatch[1];
-				routeConfig = ipMatch[2];
+			// Check if the config starts with an IP/CIDR prefix for client IP filtering
+			// Matches: "100.0.0.0/8 ->" or "192.168.1.1 ->"
+			const ipPrefixMatch = configValue.match(
+				/^([\d.]+(?:\/\d+)?)\s*->\s*(.+)$/,
+			);
+			if (ipPrefixMatch) {
+				clientIpRange = ipPrefixMatch[1];
+				routeConfig = ipPrefixMatch[2];
 			}
 
 			const type = routeConfig.includes(" -> ") ? "proxy" : "redirect";
@@ -46,6 +50,7 @@ function getRoutes(service: DockerService | DockerContainer): (Route | null)[] {
 			return {
 				configValue,
 				bindIp,
+				clientIpRange,
 				incomingHost: hostname,
 				incomingHostQuery: new RegExp(hostname),
 				serviceId,
