@@ -22,6 +22,19 @@ Labels can be used to set some rules for the proxy. There are two available symb
 
 `=>` is a 301 redirect proxy to the url on right
 
+### IP Address Filtering (Optional)
+You can optionally prefix any rule with an IP address to restrict access to specific network interfaces:
+
+```
+<IP_ADDRESS> <RULE>
+```
+
+For example:
+- `127.0.0.1 http://example.com/(.*) -> http://backend:8080/$1` - Only accepts requests on 127.0.0.1
+- `10.0.0.5 https://admin.example.com/(.*) -> http://admin:8080/$1` - Only accepts requests on 10.0.0.5
+
+Routes without an IP prefix will accept requests on all interfaces.
+
 ## Example
 ```yaml
 version: "3"
@@ -66,5 +79,15 @@ services:
     deploy:
       labels:
         docker-gateway.0: https://something.three.test/(.*) -> http://example3:8080/$$1
+
+  example4:
+    image: example
+    deploy:
+      labels:
+        # Only accessible from internal network (10.0.0.1)
+        docker-gateway.0: 10.0.0.1 http://internal.test/(.*) -> http://example4:8080/$$1
+        docker-gateway.1: 10.0.0.1 https://internal.test/(.*) -> http://example4:8080/$$1
+        # Public access from any IP
+        docker-gateway.2: http://public.test/(.*) -> http://example4:8080/public/$$1
 
 ```
