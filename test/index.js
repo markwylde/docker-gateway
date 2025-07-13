@@ -42,7 +42,10 @@ before(() => {
           'docker-gateway.5': 'http://two.test/(.*) => http://0.0.0.0:9998/$1',
           'docker-gateway.6': 'https://oops.test/(.*) -> http://notfound:9998/$1',
           'docker-gateway.7': 'https://(.*).four.test/(.*) -> http://0.0.0.0:9998/$1/$2',
-          'docker-gateway.8': 'http://(.*).five.test/(.*) => http://$1:9998/$2'
+          'docker-gateway.8': 'http://(.*).five.test/(.*) => http://$1:9998/$2',
+          'docker-gateway.9': '127.0.0.1 http://ipfiltered.test/(.*) -> http://0.0.0.0:9998/ipfiltered/$1',
+          'docker-gateway.10': '127.0.0.1 https://ipfiltered.test/(.*) -> http://0.0.0.0:9998/ipfiltered/$1',
+          'docker-gateway.11': '127.0.0.2 http://ipfiltered.test/(.*) -> http://0.0.0.0:9998/differentip/$1'
         }
       }]));
       return;
@@ -337,6 +340,97 @@ describe('Docker Gateway Tests', () => {
 
     assert.strictEqual(response.status, 200, 'has correct status');
     assert.strictEqual(response.data, 'request.url=/alpha/one', 'has correct response text');
+
+    stop();
+  });
+
+  test('http - IP filtering allows matching IP', async () => {
+    const stop = await createDockerGateway({
+      httpPort: 9080,
+      httpsPort: 9443
+    });
+
+    const response = await axios('http://127.0.0.1:9080/test', {
+      headers: {
+        host: 'ipfiltered.test'
+      },
+      validateStatus: () => true
+    });
+
+    assert.strictEqual(response.status, 200, 'has correct status');
+    assert.strictEqual(response.data, 'request.url=/ipfiltered/test', 'has correct response text');
+
+    stop();
+  });
+
+  test('https - IP filtering allows matching IP', async () => {
+    const stop = await createDockerGateway({
+      httpPort: 9080,
+      httpsPort: 9443
+    });
+
+    const response = await axios('https://127.0.0.1:9443/test', {
+      headers: {
+        host: 'ipfiltered.test'
+      },
+      httpsAgent: new https.Agent({
+        rejectUnauthorized: false
+      }),
+      validateStatus: () => true
+    });
+
+    assert.strictEqual(response.status, 200, 'has correct status');
+    assert.strictEqual(response.data, 'request.url=/ipfiltered/test', 'has correct response text');
+
+    stop();
+  });
+
+  test('http - IP filtering blocks non-matching IP', async () => {
+    const stop = await createDockerGateway({
+      httpPort: 9080,
+      httpsPort: 9443
+    });
+
+    // Connect to 0.0.0.0 instead of 127.0.0.1
+    const response = await axios('http://0.0.0.0:9080/test', {
+      headers: {
+        host: 'ipfiltered.test'
+      },
+      validateStatus: () => true
+    });
+
+    assert.strictEqual(response.status, 404, 'has correct status');
+    assert.strictEqual(response.data, '404 Not Found - No route available to take this request', 'has correct response text');
+
+    stop();
+  });
+
+  test('http - routes without IP filter work on any IP', async () => {
+    const stop = await createDockerGateway({
+      httpPort: 9080,
+      httpsPort: 9443
+    });
+
+    // Test that regular routes still work on any IP
+    const response1 = await axios('http://127.0.0.1:9080/test', {
+      headers: {
+        host: 'two.test'
+      },
+      validateStatus: () => true
+    });
+
+    assert.strictEqual(response1.status, 200, 'has correct status for 127.0.0.1');
+    assert.strictEqual(response1.data, 'request.url=/test', 'has correct response text');
+
+    const response2 = await axios('http://0.0.0.0:9080/test', {
+      headers: {
+        host: 'two.test'
+      },
+      validateStatus: () => true
+    });
+
+    assert.strictEqual(response2.status, 200, 'has correct status for 0.0.0.0');
+    assert.strictEqual(response2.data, 'request.url=/test', 'has correct response text');
 
     stop();
   });
