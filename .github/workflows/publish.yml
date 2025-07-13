@@ -19,10 +19,15 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
+      - name: Get version from package.json
+        id: package-version
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ghcr.io/markwylde/docker-gateway:latest
+          tags: |
+            ghcr.io/markwylde/docker-gateway:latest
+            ghcr.io/markwylde/docker-gateway:v${{ steps.package-version.outputs.VERSION }}
