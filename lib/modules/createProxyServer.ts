@@ -121,8 +121,18 @@ function handleHttp(
 ): void {
 	const url = `http://${request.headers.host}${request.url || ""}`;
 	const localAddress = request.socket.localAddress;
+	const remoteAddress = request.socket.remoteAddress;
 
-	// Debug logging
+	// Debug logging for all requests
+	console.log("DEBUG: handleHttp request", {
+		host: request.headers.host,
+		localAddress,
+		remoteAddress,
+		url,
+		method: request.method,
+	});
+
+	// Additional debug logging for IP filtering
 	if (request.headers.host === "ipfiltered.test") {
 		console.log("DEBUG: IP filtering request", {
 			url,
