@@ -31,13 +31,18 @@ function getRoutes(service: DockerService | DockerContainer): (Route | null)[] {
 			let routeConfig = configValue;
 
 			// Check if the config starts with an IP/CIDR prefix for client IP filtering
-			// Matches: "100.0.0.0/8 ->" or "192.168.1.1 ->"
-			const ipPrefixMatch = configValue.match(
-				/^([\d.]+(?:\/\d+)?)\s*->\s*(.+)$/,
-			);
-			if (ipPrefixMatch) {
-				clientIpRange = ipPrefixMatch[1];
-				routeConfig = ipPrefixMatch[2];
+			// First, count the number of "->" in the config to determine if it has an IP prefix
+			const arrowCount = (configValue.match(/->/g) || []).length;
+
+			if (arrowCount === 2) {
+				// Has IP prefix: "IP -> URL -> TARGET"
+				const ipPrefixMatch = configValue.match(
+					/^\s*([\d.,/\s:]+?)\s*->\s*(.+)$/,
+				);
+				if (ipPrefixMatch) {
+					clientIpRange = ipPrefixMatch[1].trim();
+					routeConfig = ipPrefixMatch[2].trim();
+				}
 			}
 
 			const type = routeConfig.includes(" -> ") ? "proxy" : "redirect";
