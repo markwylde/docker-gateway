@@ -30,8 +30,8 @@ You can optionally prefix any rule with an IP address to restrict access to spec
 ```
 
 For example:
-- `127.0.0.1 http://example.com/(.*) -> http://backend:8080/$1` - Only accepts requests on 127.0.0.1
-- `10.0.0.5 https://admin.example.com/(.*) -> http://admin:8080/$1` - Only accepts requests on 10.0.0.5
+- `127.0.0.1 -> http://example.com/(.*) -> http://backend:8080/$1` - Only accepts requests on 127.0.0.1
+- `10.0.0.5 -> https://admin.example.com/(.*) -> http://admin:8080/$1` - Only accepts requests on 10.0.0.5
 
 Routes without an IP prefix will accept requests on all interfaces.
 
@@ -85,8 +85,8 @@ services:
     deploy:
       labels:
         # Only accessible from internal network (10.0.0.1)
-        docker-gateway.0: 10.0.0.1 http://internal.test/(.*) -> http://example4:8080/$$1
-        docker-gateway.1: 10.0.0.1 https://internal.test/(.*) -> http://example4:8080/$$1
+        docker-gateway.0: 10.0.0.1 -> http://internal.test/(.*) -> http://example4:8080/$$1
+        docker-gateway.1: 10.0.0.1 -> https://internal.test/(.*) -> http://example4:8080/$$1
         # Public access from any IP
         docker-gateway.2: http://public.test/(.*) -> http://example4:8080/public/$$1
 

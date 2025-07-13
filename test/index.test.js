@@ -53,13 +53,13 @@ before(() => {
 							"docker-gateway.8":
 								"http://(.*).five.test/(.*) => http://$1:9998/$2",
 							"docker-gateway.9":
-								"127.0.0.1 http://ipfiltered.test/(.*) -> http://0.0.0.0:9998/ipfiltered/$1",
+								"127.0.0.1 -> http://ipfiltered.test/(.*) -> http://0.0.0.0:9998/ipfiltered/$1",
 							"docker-gateway.10":
-								"127.0.0.1 https://ipfiltered.test/(.*) -> http://0.0.0.0:9998/ipfiltered/$1",
+								"127.0.0.1 -> https://ipfiltered.test/(.*) -> http://0.0.0.0:9998/ipfiltered/$1",
 							"docker-gateway.11":
-								"127.0.0.2 http://ipfiltered.test/(.*) -> http://0.0.0.0:9998/differentip/$1",
+								"127.0.0.2 -> http://ipfiltered.test/(.*) -> http://0.0.0.0:9998/differentip/$1",
 							"docker-gateway.12":
-								"10.0.0.1 http://ipfiltered-strict.test/(.*) -> http://0.0.0.0:9998/strict/$1",
+								"10.0.0.1 -> http://ipfiltered-strict.test/(.*) -> http://0.0.0.0:9998/strict/$1",
 						},
 					},
 				]),
