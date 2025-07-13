@@ -89,6 +89,15 @@ function createProxy(
 		),
 	);
 
+	console.log("DEBUG: Route matched", {
+		requestHost: request.headers.host,
+		requestUrl: url,
+		matchedRoute: route.configValue,
+		upstreamTarget: proxyUrl.href,
+		routePattern: route.incomingHost,
+		serviceName: route.serviceName,
+	});
+
 	request.url = proxyUrl.pathname + proxyUrl.search;
 
 	return httpProxy.createProxyServer({
