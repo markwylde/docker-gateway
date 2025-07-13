@@ -4,6 +4,7 @@ import type { SecureContext } from "node:tls";
 export interface Route {
 	configValue: string;
 	bindIp: string | null;
+	clientIpRange: string | null;
 	incomingHost: string;
 	incomingHostQuery: RegExp;
 	serviceId: string;
