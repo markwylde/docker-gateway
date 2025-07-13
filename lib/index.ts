@@ -5,7 +5,10 @@ import listRoutesFromServices from "./modules/listRoutesFromServices.ts";
 import watchDockerForChanges from "./modules/watchDockerForChanges.ts";
 import UiServer from "./ui/server.ts";
 import createRouter from "./utils/createRouter.ts";
+import { createLogger } from "./utils/logger.ts";
 import seekCertificates from "./utils/seekCertificates.ts";
+
+const logger = createLogger("main");
 
 interface DockerGatewayOptions {
 	httpPort?: number | string;
@@ -30,6 +33,11 @@ export default async function createDockerGateway(
 	const router = createRouter();
 	const certificates = await seekCertificates();
 	const uiServer = new UiServer();
+
+	// Log startup configuration
+	logger.info(
+		`Starting docker-gateway with LOG_LEVEL=${process.env.LOG_LEVEL || "INFO"}`,
+	);
 
 	// Start UI server
 	const uiHttpServer = await uiServer.start(options.uiPort);

@@ -3,6 +3,9 @@ import finalStream from "final-stream";
 import type { DockerContainer, DockerService, Router } from "../types.ts";
 import getDockerUrl from "../utils/getDockerUrl.ts";
 import getRoutes from "../utils/getRoutes.ts";
+import { createLogger } from "../utils/logger.ts";
+
+const logger = createLogger("listRoutesFromServices");
 
 const httpGet = <T = unknown>(options: http.RequestOptions): Promise<T> =>
 	new Promise((resolve, reject) => {
@@ -12,17 +15,17 @@ const httpGet = <T = unknown>(options: http.RequestOptions): Promise<T> =>
 					const data = await finalStream(response).then((buffer) =>
 						JSON.parse(buffer.toString()),
 					);
-					console.log("ERROR", response.statusCode, data);
+					logger.error("HTTP request failed", response.statusCode, data);
 				} catch (error) {
-					console.log("ERROR", error);
+					logger.error("Error parsing response", error);
 				}
 				reject(new Error("could not query docker"));
 				return;
 			}
 
-			console.log("Watching docker for changes");
+			logger.debug("Received response from Docker");
 
-			response.on("error", (data) => console.error(data));
+			response.on("error", (data) => logger.error(data));
 
 			const data = await finalStream(response).then((buffer) =>
 				JSON.parse(buffer.toString()),
@@ -140,12 +143,12 @@ async function listRoutesFromServices(
 		.filter((route): route is NonNullable<typeof route> => route !== null);
 
 	// Log the routes that will be set
-	console.log(
+	logger.info(
 		`Setting ${routes.length} routes after filtering out stopping containers`,
 	);
-	if (routes.length > 0) {
+	if (routes.length > 0 && logger.debug) {
 		routes.forEach((route) => {
-			console.log(
+			logger.debug(
 				`Active route: ${route.configValue} for service ${route.serviceId}`,
 			);
 		});

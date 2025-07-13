@@ -5,7 +5,10 @@ import type { SecureContext } from "node:tls";
 import httpProxy from "http-proxy";
 import type { Certificate, Route, Router } from "../types.ts";
 import { isClientIpAllowed } from "../utils/ipUtils.ts";
+import { createLogger } from "../utils/logger.ts";
 import matchWildcardDomain from "../utils/matchWildcardDomain.ts";
+
+const logger = createLogger("createProxyServer");
 
 interface FindRouteResult {
 	route: Route | undefined;
@@ -29,7 +32,7 @@ function findRoute(
 		// Check client IP range if specified
 		if (match && route.clientIpRange) {
 			if (!isClientIpAllowed(clientIp, route.clientIpRange)) {
-				console.log("DEBUG: Client IP rejected", {
+				logger.debug("Client IP rejected", {
 					clientIp,
 					allowedRange: route.clientIpRange,
 					route: route.configValue,
@@ -62,7 +65,7 @@ function createProxy(
 	// Use only the remote socket address for client IP
 	const clientIp = request.socket.remoteAddress;
 
-	console.log("DEBUG: Client IP detection in createProxy", {
+	logger.debug("Client IP detection in createProxy", {
 		socketRemoteAddress: request.socket.remoteAddress,
 		socketRemoteFamily: request.socket.remoteFamily,
 		socketRemotePort: request.socket.remotePort,
@@ -89,7 +92,7 @@ function createProxy(
 		),
 	);
 
-	console.log("DEBUG: Route matched", {
+	logger.debug("Route matched", {
 		requestHost: request.headers.host,
 		requestUrl: url,
 		matchedRoute: route.configValue,
@@ -119,7 +122,7 @@ function handleHttp(
 	const clientIp = remoteAddress;
 
 	// Debug logging for all requests
-	console.log("DEBUG: handleHttp request", {
+	logger.debug("handleHttp request", {
 		host: request.headers.host,
 		remoteAddress,
 		clientIp,
@@ -129,7 +132,7 @@ function handleHttp(
 
 	// Additional debug logging for IP filtering
 	if (request.headers.host === "ipfiltered.test") {
-		console.log("DEBUG: IP filtering request", {
+		logger.debug("IP filtering request", {
 			url,
 			remoteAddress: request.socket.remoteAddress,
 			clientIp,
@@ -193,7 +196,7 @@ function createProxyServer(
 		})
 		.listen(httpPort, "0.0.0.0", () => {
 			const addr = httpServer.address();
-			console.log("HTTP Server listening on", addr);
+			logger.info("HTTP Server listening on", addr);
 		});
 
 	const httpsServer = https
@@ -228,7 +231,7 @@ function createProxyServer(
 		)
 		.listen(httpsPort, "0.0.0.0", () => {
 			const addr = httpsServer.address();
-			console.log("HTTPS Server listening on", addr);
+			logger.info("HTTPS Server listening on", addr);
 		});
 
 	httpsServer.on(

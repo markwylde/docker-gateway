@@ -38,6 +38,15 @@ Routes without a client IP prefix will accept requests from any client IP addres
 
 **Note**: docker-gateway uses the direct connection IP address (socket.remoteAddress) for client IP filtering. X-Forwarded-For headers are not trusted and are ignored for security reasons.
 
+## Environment Variables
+
+- `HTTP_PORT` - Port for HTTP server (default: 80)
+- `HTTPS_PORT` - Port for HTTPS server (default: 443)
+- `UI_PORT` - Port for web UI server (default: 8080)
+- `DOCKER_URL` - Docker API endpoint (default: /var/run/docker.sock)
+- `CERT_PATTERN` - Glob pattern for SSL certificates (default: /certs/**.pem)
+- `LOG_LEVEL` - Logging verbosity: ERROR, WARN, INFO, DEBUG (default: INFO)
+
 ## Example
 ```yaml
 version: "3"
@@ -60,6 +69,7 @@ services:
     environment:
       DOCKER_URL: http://readonly-docker:2375
       CERT_PATTERN: /certs/**.pem
+      LOG_LEVEL: INFO  # Options: ERROR, WARN, INFO, DEBUG (default: INFO)
     volumes:
       - ../certs:/certs:ro
 

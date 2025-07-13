@@ -4,6 +4,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Eta } from "eta";
 import type { UiServer as IUiServer, Route } from "../types.ts";
+import { createLogger } from "../utils/logger.ts";
+
+const logger = createLogger("UiServer");
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -123,7 +126,7 @@ class UiServer implements IUiServer {
 		});
 
 		server.listen(Number(port), () => {
-			console.log(`UI server listening on port ${port}`);
+			logger.info(`UI server listening on port ${port}`);
 		});
 
 		return server;
