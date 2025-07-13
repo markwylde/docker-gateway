@@ -2,7 +2,10 @@ import http, { type IncomingMessage } from "node:http";
 import ndJsonFe from "ndjson-fe";
 import type { Router, UiServer } from "../types.ts";
 import getDockerUrl from "../utils/getDockerUrl.ts";
+import { createLogger } from "../utils/logger.ts";
 import listRoutesFromServices from "./listRoutesFromServices.ts";
+
+const logger = createLogger("watchDockerForChanges");
 
 // Modified listRoutesFromServices function that filters out stopping containers
 async function listRoutesFromServicesFiltered(
@@ -27,16 +30,16 @@ function watchDockerForChanges(
 
 		const callback = (response: IncomingMessage) => {
 			if (response.statusCode === 200) {
-				console.log("Watching docker for changes");
+				logger.info("Watching docker for changes");
 			}
 			response.setEncoding("utf8");
 
 			const feed = ndJsonFe();
 
 			feed.on("next", (data) => parseDockerEvent(data as DockerEvent));
-			feed.on("error", (data) => console.error(data));
+			feed.on("error", (data) => logger.error(data));
 			feed.on("end", () => {
-				console.log("The stream has finished");
+				logger.info("The stream has finished");
 			});
 
 			response.pipe(feed);
@@ -60,7 +63,7 @@ function watchDockerForChanges(
 		}
 
 		function parseDockerEvent(response: DockerEvent): void {
-			console.log("Docker event received:", JSON.stringify(response, null, 2));
+			logger.debug("Docker event received:", JSON.stringify(response, null, 2));
 
 			if (response.Type === "container") {
 				const action = response.Action;
@@ -102,7 +105,7 @@ function watchDockerForChanges(
 					// Add this container to the stopping containers set
 					if (containerId) {
 						stoppingContainers.add(containerId);
-						console.log(
+						logger.debug(
 							`Added ${containerId} to stopping containers set (size: ${stoppingContainers.size})`,
 						);
 					}
@@ -223,7 +226,7 @@ function watchDockerForChanges(
 				listRoutesFromServicesFiltered(router, stoppingContainers);
 			} else {
 				// For other event types, just refresh all routes
-				console.log(`Docker event: ${response.Type} ${response.Action}`);
+				logger.debug(`Docker event: ${response.Type} ${response.Action}`);
 				listRoutesFromServicesFiltered(router, stoppingContainers);
 			}
 		}

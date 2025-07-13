@@ -1,4 +1,7 @@
 import type { DockerContainer, DockerService, Route } from "../types.ts";
+import { createLogger } from "./logger.ts";
+
+const logger = createLogger("getRoutes");
 
 function getRoutes(service: DockerService | DockerContainer): (Route | null)[] {
 	const labels = {
@@ -14,7 +17,7 @@ function getRoutes(service: DockerService | DockerContainer): (Route | null)[] {
 		"unknown";
 
 	// Log the service information
-	console.log(`Getting routes for service: ${serviceName} (${serviceId})`);
+	logger.debug(`Getting routes for service: ${serviceName} (${serviceId})`);
 
 	return Object.keys(labels).map((labelKey) => {
 		if (!labelKey.startsWith("docker-gateway.")) {
@@ -23,7 +26,7 @@ function getRoutes(service: DockerService | DockerContainer): (Route | null)[] {
 
 		const configValue = labels[labelKey];
 
-		console.log(`Adding route to "${serviceId}" from ${configValue}`);
+		logger.debug(`Adding route to "${serviceId}" from ${configValue}`);
 
 		if (configValue) {
 			const bindIp = null;
