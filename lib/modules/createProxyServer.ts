@@ -60,9 +60,16 @@ function createProxy(
 	const url = `${protocol}://${request.headers.host}${request.url || ""}`;
 
 	// Get client IP from X-Forwarded-For header (if behind proxy) or socket
+	const xForwardedFor = request.headers["x-forwarded-for"] as string;
 	const clientIp =
-		(request.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
-		request.socket.remoteAddress;
+		xForwardedFor?.split(",")[0]?.trim() || request.socket.remoteAddress;
+
+	console.log("DEBUG: Client IP detection in createProxy", {
+		xForwardedFor,
+		socketRemoteAddress: request.socket.remoteAddress,
+		resolvedClientIp: clientIp,
+		headers: request.headers,
+	});
 
 	const { route, match } = findRoute(router, url, clientIp);
 
@@ -99,9 +106,8 @@ function handleHttp(
 	const remoteAddress = request.socket.remoteAddress;
 
 	// Get client IP from X-Forwarded-For header (if behind proxy) or socket
-	const clientIp =
-		(request.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
-		remoteAddress;
+	const xForwardedFor = request.headers["x-forwarded-for"] as string;
+	const clientIp = xForwardedFor?.split(",")[0]?.trim() || remoteAddress;
 
 	// Debug logging for all requests
 	console.log("DEBUG: handleHttp request", {
