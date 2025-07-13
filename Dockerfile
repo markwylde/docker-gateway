@@ -11,4 +11,4 @@ ADD lib lib
 RUN apk add tini
 
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "--no-experimental-strip-types", "lib"]
+CMD ["node", "--experimental-strip-types", "lib/index.ts"]
