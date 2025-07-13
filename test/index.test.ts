@@ -65,6 +65,10 @@ before(() => {
 								"192.168.0.0/16 -> http://private-only.test/(.*) -> http://0.0.0.0:9998/private/$1",
 							"docker-gateway.12":
 								"http://public.test/(.*) -> http://0.0.0.0:9998/public/$1",
+							"docker-gateway.13":
+								"127.0.0.1,::1 -> http://multi-ip.test/(.*) -> http://0.0.0.0:9998/multi-ip/$1",
+							"docker-gateway.14":
+								"100.0.0.0/8,172.20.0.0/16 -> http://multi-cidr.test/(.*) -> http://0.0.0.0:9998/multi-cidr/$1",
 						},
 					},
 				]),
@@ -599,6 +603,63 @@ describe("Docker Gateway Tests", () => {
 		assert.strictEqual(
 			response.data,
 			"request.url=/client-filtered/test",
+			"has correct response text",
+		);
+
+		stop();
+	});
+
+	test("http - comma-separated IP filtering allows matching IPs", async () => {
+		const stop = await createDockerGateway({
+			httpPort: 9080,
+			httpsPort: 9443,
+			uiPort: 0,
+		});
+
+		// Wait a bit for the server to be ready
+		await new Promise((resolve) => setTimeout(resolve, 100));
+
+		// Test that requests from 127.0.0.1 are allowed through multi-ip filter
+		const response = await axios("http://127.0.0.1:9080/test", {
+			headers: {
+				host: "multi-ip.test",
+			},
+			validateStatus: () => true,
+		});
+
+		assert.strictEqual(response.status, 200, "has correct status");
+		assert.strictEqual(
+			response.data,
+			"request.url=/multi-ip/test",
+			"has correct response text",
+		);
+
+		stop();
+	});
+
+	test("http - comma-separated CIDR filtering blocks non-matching IPs", async () => {
+		const stop = await createDockerGateway({
+			httpPort: 9080,
+			httpsPort: 9443,
+			uiPort: 0,
+		});
+
+		// Wait a bit for the server to be ready
+		await new Promise((resolve) => setTimeout(resolve, 100));
+
+		// Test that requests from localhost (127.0.0.1) are blocked by multi-cidr filter
+		// which only allows 100.0.0.0/8 and 172.20.0.0/16
+		const response = await axios("http://127.0.0.1:9080/test", {
+			headers: {
+				host: "multi-cidr.test",
+			},
+			validateStatus: () => true,
+		});
+
+		assert.strictEqual(response.status, 404, "has correct status");
+		assert.strictEqual(
+			response.data,
+			"404 Not Found - No route available to take this request",
 			"has correct response text",
 		);
 
