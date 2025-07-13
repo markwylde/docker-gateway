@@ -58,13 +58,13 @@ before(() => {
 							"docker-gateway.8":
 								"http://(.*).five.test/(.*) => http://$1:9998/$2",
 							"docker-gateway.9":
-								"127.0.0.1 -> http://ipfiltered.test/(.*) -> http://0.0.0.0:9998/ipfiltered/$1",
+								"127.0.0.1 -> http://ipfiltered.test/(.*) -> http://0.0.0.0:9998/client-filtered/$1",
 							"docker-gateway.10":
-								"127.0.0.1 -> https://ipfiltered.test/(.*) -> http://0.0.0.0:9998/ipfiltered/$1",
+								"100.0.0.0/8 -> https://tailscale-only.test/(.*) -> http://0.0.0.0:9998/tailscale/$1",
 							"docker-gateway.11":
-								"127.0.0.2 -> http://ipfiltered.test/(.*) -> http://0.0.0.0:9998/differentip/$1",
+								"192.168.0.0/16 -> http://private-only.test/(.*) -> http://0.0.0.0:9998/private/$1",
 							"docker-gateway.12":
-								"10.0.0.1 -> http://ipfiltered-strict.test/(.*) -> http://0.0.0.0:9998/strict/$1",
+								"http://public.test/(.*) -> http://0.0.0.0:9998/public/$1",
 						},
 					},
 				]),
@@ -418,16 +418,19 @@ describe("Docker Gateway Tests", () => {
 		stop();
 	});
 
-	test("http - IP filtering allows matching IP", async () => {
+	test("http - client IP filtering allows matching IP", async () => {
 		const stop = await createDockerGateway({
 			httpPort: 9080,
 			httpsPort: 9443,
 			uiPort: 0,
 		});
 
+		// Test that requests from 127.0.0.1 are allowed
 		const response = await axios("http://127.0.0.1:9080/test", {
 			headers: {
 				host: "ipfiltered.test",
+				// Simulate X-Forwarded-For header that would be set by Docker Swarm
+				"x-forwarded-for": "127.0.0.1",
 			},
 			validateStatus: () => true,
 		});
@@ -435,35 +438,34 @@ describe("Docker Gateway Tests", () => {
 		assert.strictEqual(response.status, 200, "has correct status");
 		assert.strictEqual(
 			response.data,
-			"request.url=/ipfiltered/test",
+			"request.url=/client-filtered/test",
 			"has correct response text",
 		);
 
 		stop();
 	});
 
-	test("https - IP filtering allows matching IP", async () => {
+	test("http - client IP filtering blocks non-matching IP", async () => {
 		const stop = await createDockerGateway({
 			httpPort: 9080,
 			httpsPort: 9443,
 			uiPort: 0,
 		});
 
-		const response = await axios("https://127.0.0.1:9443/test", {
+		// Test that requests from 192.168.1.1 are blocked (not 127.0.0.1)
+		const response = await axios("http://127.0.0.1:9080/test", {
 			headers: {
 				host: "ipfiltered.test",
+				// Simulate X-Forwarded-For header with non-matching IP
+				"x-forwarded-for": "192.168.1.1",
 			},
-			httpsAgent: new https.Agent({
-				rejectUnauthorized: false,
-			}),
 			validateStatus: () => true,
 		});
 
-		assert.strictEqual(response.status, 200, "has correct status");
 		assert.strictEqual(
-			response.data,
-			"request.url=/ipfiltered/test",
-			"has correct response text",
+			response.status,
+			404,
+			"should return 404 for non-matching IP",
 		);
 
 		stop();
@@ -535,6 +537,177 @@ describe("Docker Gateway Tests", () => {
 		assert.strictEqual(
 			response2.data,
 			"request.url=/test",
+			"has correct response text",
+		);
+
+		stop();
+	});
+
+	// Comprehensive client IP filtering tests
+	test("https - Tailscale CIDR range filtering allows IPs in range", async () => {
+		const stop = await createDockerGateway({
+			httpPort: 9080,
+			httpsPort: 9443,
+			uiPort: 0,
+		});
+
+		// Test that requests from Tailscale IP range (100.0.0.0/8) are allowed
+		const response = await axios("https://127.0.0.1:9443/test", {
+			headers: {
+				host: "tailscale-only.test",
+				"x-forwarded-for": "100.75.140.94", // Your Tailscale IP
+			},
+			httpsAgent: new https.Agent({
+				rejectUnauthorized: false,
+			}),
+			validateStatus: () => true,
+		});
+
+		assert.strictEqual(response.status, 200, "should allow Tailscale IP");
+		assert.strictEqual(
+			response.data,
+			"request.url=/tailscale/test",
+			"has correct response text",
+		);
+
+		stop();
+	});
+
+	test("https - Tailscale CIDR range filtering blocks IPs outside range", async () => {
+		const stop = await createDockerGateway({
+			httpPort: 9080,
+			httpsPort: 9443,
+			uiPort: 0,
+		});
+
+		// Test that requests from non-Tailscale IPs are blocked
+		const response = await axios("https://127.0.0.1:9443/test", {
+			headers: {
+				host: "tailscale-only.test",
+				"x-forwarded-for": "192.168.1.100", // Not in Tailscale range
+			},
+			httpsAgent: new https.Agent({
+				rejectUnauthorized: false,
+			}),
+			validateStatus: () => true,
+		});
+
+		assert.strictEqual(response.status, 404, "should block non-Tailscale IP");
+
+		stop();
+	});
+
+	test("http - Private network CIDR filtering", async () => {
+		const stop = await createDockerGateway({
+			httpPort: 9080,
+			httpsPort: 9443,
+			uiPort: 0,
+		});
+
+		// Test that requests from private network range are allowed
+		const response = await axios("http://127.0.0.1:9080/test", {
+			headers: {
+				host: "private-only.test",
+				"x-forwarded-for": "192.168.50.50",
+			},
+			validateStatus: () => true,
+		});
+
+		assert.strictEqual(response.status, 200, "should allow private network IP");
+		assert.strictEqual(
+			response.data,
+			"request.url=/private/test",
+			"has correct response text",
+		);
+
+		stop();
+	});
+
+	test("http - Public route with no IP restriction", async () => {
+		const stop = await createDockerGateway({
+			httpPort: 9080,
+			httpsPort: 9443,
+			uiPort: 0,
+		});
+
+		// Test that public routes work with any IP
+		const response = await axios("http://127.0.0.1:9080/test", {
+			headers: {
+				host: "public.test",
+				"x-forwarded-for": "8.8.8.8", // Public IP
+			},
+			validateStatus: () => true,
+		});
+
+		assert.strictEqual(
+			response.status,
+			200,
+			"should allow any IP for public route",
+		);
+		assert.strictEqual(
+			response.data,
+			"request.url=/public/test",
+			"has correct response text",
+		);
+
+		stop();
+	});
+
+	test("http - X-Forwarded-For header parsing with multiple IPs", async () => {
+		const stop = await createDockerGateway({
+			httpPort: 9080,
+			httpsPort: 9443,
+			uiPort: 0,
+		});
+
+		// Test X-Forwarded-For with multiple IPs (first one should be used)
+		const response = await axios("http://127.0.0.1:9080/test", {
+			headers: {
+				host: "ipfiltered.test",
+				"x-forwarded-for": "127.0.0.1, 10.0.0.1, 192.168.1.1",
+			},
+			validateStatus: () => true,
+		});
+
+		assert.strictEqual(
+			response.status,
+			200,
+			"should use first IP from X-Forwarded-For",
+		);
+		assert.strictEqual(
+			response.data,
+			"request.url=/client-filtered/test",
+			"has correct response text",
+		);
+
+		stop();
+	});
+
+	test("http - Falls back to remoteAddress when no X-Forwarded-For", async () => {
+		const stop = await createDockerGateway({
+			httpPort: 9080,
+			httpsPort: 9443,
+			uiPort: 0,
+		});
+
+		// Test without X-Forwarded-For header (should use remoteAddress)
+		// Since we're connecting from localhost, remoteAddress will be 127.0.0.1
+		const response = await axios("http://127.0.0.1:9080/test", {
+			headers: {
+				host: "ipfiltered.test",
+				// No X-Forwarded-For header
+			},
+			validateStatus: () => true,
+		});
+
+		assert.strictEqual(
+			response.status,
+			200,
+			"should fall back to remoteAddress",
+		);
+		assert.strictEqual(
+			response.data,
+			"request.url=/client-filtered/test",
 			"has correct response text",
 		);
 

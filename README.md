@@ -22,18 +22,23 @@ Labels can be used to set some rules for the proxy. There are two available symb
 
 `=>` is a 301 redirect proxy to the url on right
 
-### IP Address Filtering (Optional)
-You can optionally prefix any rule with an IP address to restrict access to specific network interfaces:
+### Client IP Filtering (Optional)
+You can optionally prefix any rule with a client IP address or CIDR range to restrict access based on the client's source IP:
 
 ```
-<IP_ADDRESS> <RULE>
+<CLIENT_IP_OR_CIDR> -> <RULE>
 ```
+
+This is particularly useful when running behind Docker Swarm or other reverse proxies that provide the client's real IP via the `X-Forwarded-For` header.
 
 For example:
-- `127.0.0.1 -> http://example.com/(.*) -> http://backend:8080/$1` - Only accepts requests on 127.0.0.1
-- `10.0.0.5 -> https://admin.example.com/(.*) -> http://admin:8080/$1` - Only accepts requests on 10.0.0.5
+- `127.0.0.1 -> http://example.com/(.*) -> http://backend:8080/$1` - Only accepts requests from client IP 127.0.0.1
+- `100.0.0.0/8 -> https://admin.example.com/(.*) -> http://admin:8080/$1` - Only accepts requests from Tailscale network (100.0.0.0/8)
+- `192.168.0.0/16 -> https://internal.example.com/(.*) -> http://internal:8080/$1` - Only accepts requests from private network
 
-Routes without an IP prefix will accept requests on all interfaces.
+Routes without a client IP prefix will accept requests from any client IP address.
+
+**Note**: When running behind Docker Swarm or other proxies, docker-gateway will use the `X-Forwarded-For` header to determine the real client IP. If this header is not present, it falls back to the direct connection IP.
 
 ## Example
 ```yaml
@@ -84,10 +89,12 @@ services:
     image: example
     deploy:
       labels:
-        # Only accessible from internal network (10.0.0.1)
-        docker-gateway.0: 10.0.0.1 -> http://internal.test/(.*) -> http://example4:8080/$$1
-        docker-gateway.1: 10.0.0.1 -> https://internal.test/(.*) -> http://example4:8080/$$1
+        # Only accessible from Tailscale network
+        docker-gateway.0: 100.0.0.0/8 -> http://internal.test/(.*) -> http://example4:8080/$$1
+        docker-gateway.1: 100.0.0.0/8 -> https://internal.test/(.*) -> http://example4:8080/$$1
+        # Only accessible from private networks
+        docker-gateway.2: 192.168.0.0/16 -> http://admin.test/(.*) -> http://example4:8080/admin/$$1
         # Public access from any IP
-        docker-gateway.2: http://public.test/(.*) -> http://example4:8080/public/$$1
+        docker-gateway.3: http://public.test/(.*) -> http://example4:8080/public/$$1
 
 ```

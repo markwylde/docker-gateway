@@ -4,6 +4,7 @@ import type { Socket } from "node:net";
 import type { SecureContext } from "node:tls";
 import httpProxy from "http-proxy";
 import type { Certificate, Route, Router } from "../types.ts";
+import { isClientIpAllowed } from "../utils/ipUtils.ts";
 import matchWildcardDomain from "../utils/matchWildcardDomain.ts";
 
 interface FindRouteResult {
@@ -15,7 +16,7 @@ interface FindRouteResult {
 function findRoute(
 	router: Router,
 	requestUrl: string,
-	localAddress: string | undefined,
+	clientIp: string | undefined,
 ): FindRouteResult {
 	const routes = router.getRoutes();
 	let match: RegExpMatchArray | null = null;
@@ -25,49 +26,14 @@ function findRoute(
 		match = requestUrl.match(route.incomingHost);
 		type = route.type;
 
-		// If route has a bindIp, check if it matches the local address
-		if (match && route.bindIp) {
-			// Normalize addresses to handle various formats
-			let normalizedLocalAddress = localAddress;
-
-			// Handle IPv6 mapped IPv4 addresses (::ffff:127.0.0.1 -> 127.0.0.1)
-			if (normalizedLocalAddress?.startsWith("::ffff:")) {
-				normalizedLocalAddress = normalizedLocalAddress.substring(7);
-			}
-
-			// Debug logging for IP filtering
-			console.log("DEBUG: IP filtering check", {
-				host: requestUrl,
-				routeBindIp: route.bindIp,
-				localAddress,
-				normalizedLocalAddress,
-				process: {
-					pid: process.pid,
-					platform: process.platform,
-				},
-				socket: {
-					localPort: 443, // Will be updated in actual request
-				},
-				routeTarget: route.target.href,
-			});
-
-			// Handle IPv6 loopback (::1) as 127.0.0.1
-			if (normalizedLocalAddress === "::1" && route.bindIp === "127.0.0.1") {
-				return true;
-			}
-
-			// Handle IPv4 loopback variations
-			if (
-				(normalizedLocalAddress === "127.0.0.1" ||
-					normalizedLocalAddress === "::1") &&
-				(route.bindIp === "127.0.0.1" || route.bindIp === "::1")
-			) {
-				return true;
-			}
-
-			// When connecting to 0.0.0.0, the localAddress might be the actual interface IP
-			// In this case, we need to check strictly - no special handling
-			if (normalizedLocalAddress !== route.bindIp) {
+		// Check client IP range if specified
+		if (match && route.clientIpRange) {
+			if (!isClientIpAllowed(clientIp, route.clientIpRange)) {
+				console.log("DEBUG: Client IP rejected", {
+					clientIp,
+					allowedRange: route.clientIpRange,
+					route: route.configValue,
+				});
 				return false;
 			}
 		}
@@ -92,9 +58,13 @@ function createProxy(
 			? "https"
 			: "http";
 	const url = `${protocol}://${request.headers.host}${request.url || ""}`;
-	const localAddress = request.socket.localAddress;
 
-	const { route, match } = findRoute(router, url, localAddress);
+	// Get client IP from X-Forwarded-For header (if behind proxy) or socket
+	const clientIp =
+		(request.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+		request.socket.remoteAddress;
+
+	const { route, match } = findRoute(router, url, clientIp);
 
 	if (!route) {
 		if (response) {
@@ -126,14 +96,19 @@ function handleHttp(
 	response: ServerResponse,
 ): void {
 	const url = `http://${request.headers.host}${request.url || ""}`;
-	const localAddress = request.socket.localAddress;
 	const remoteAddress = request.socket.remoteAddress;
+
+	// Get client IP from X-Forwarded-For header (if behind proxy) or socket
+	const clientIp =
+		(request.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+		remoteAddress;
 
 	// Debug logging for all requests
 	console.log("DEBUG: handleHttp request", {
 		host: request.headers.host,
-		localAddress,
 		remoteAddress,
+		clientIp,
+		"x-forwarded-for": request.headers["x-forwarded-for"],
 		url,
 		method: request.method,
 	});
@@ -142,13 +117,13 @@ function handleHttp(
 	if (request.headers.host === "ipfiltered.test") {
 		console.log("DEBUG: IP filtering request", {
 			url,
-			localAddress,
 			remoteAddress: request.socket.remoteAddress,
+			clientIp,
 			headers: request.headers,
 		});
 	}
 
-	const { route, match, type } = findRoute(router, url, localAddress);
+	const { route, match, type } = findRoute(router, url, clientIp);
 
 	if (!route) {
 		response.writeHead(404);
@@ -214,18 +189,23 @@ function createProxyServer(
 					serverName: string,
 					callback: (err: Error | null, ctx?: SecureContext) => void,
 				) => {
-					const firstCertificateKey = Object.keys(certificates)[0];
+					const certificateKeys = Object.keys(certificates);
 
-					const matchingCertificateKey = Object.keys(certificates).find(
-						(key) => {
-							return key === serverName || matchWildcardDomain(key, serverName);
-						},
-					);
+					// If no certificates available, return without context
+					if (certificateKeys.length === 0) {
+						return callback(null);
+					}
+
+					const firstCertificateKey = certificateKeys[0];
+
+					const matchingCertificateKey = certificateKeys.find((key) => {
+						return key === serverName || matchWildcardDomain(key, serverName);
+					});
 					const matchingCertificate = matchingCertificateKey
 						? certificates[matchingCertificateKey]
 						: certificates[firstCertificateKey];
 
-					return callback(null, matchingCertificate.secureContext);
+					return callback(null, matchingCertificate?.secureContext);
 				},
 			},
 			(request, response) => {
