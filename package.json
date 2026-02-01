@@ -24,7 +24,7 @@
 		"http-proxy": "^1.18.1",
 		"minimist": "^1.2.8",
 		"ndjson-fe": "^1.2.11",
-		"ws": "^8.18.3"
+		"ws": "^8.19.0"
 	},
 	"directories": {
 		"lib": "lib"
